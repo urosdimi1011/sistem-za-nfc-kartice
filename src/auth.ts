@@ -10,16 +10,13 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
-// Admin/Manager moraju biti aktivni — 10 min idle pa logout.
-// Bartender ostaje dugotrajno ulogovan (smena traje satima, ne želimo prekid).
-const ADMIN_IDLE_SECONDS = 10 * 60; // 10 min
-const DEFAULT_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 dana
+const ADMIN_IDLE_SECONDS = 10 * 60;
+const DEFAULT_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
     maxAge: DEFAULT_MAX_AGE_SECONDS,
-    // updateAge=0 → svaki request osvežava token. Bitno za sliding idle window.
     updateAge: 0,
   },
   pages: {
@@ -76,10 +73,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.tenantId = user.tenantId;
         token.tenantSlug = user.tenantSlug;
       }
-      // Sliding idle expiry samo za ADMIN/MANAGER.
-      // NextAuth setuje `token.exp` na svakom jwt callback-u (jer je updateAge=0),
-      // pa će svaki request resetovati tajmer na +10 min od sada.
-      // BARTENDER ne dobija ovaj override → koristi default maxAge (30 dana).
       if (token.role === "ADMIN" || token.role === "MANAGER") {
         token.exp = Math.floor(Date.now() / 1000) + ADMIN_IDLE_SECONDS;
       }

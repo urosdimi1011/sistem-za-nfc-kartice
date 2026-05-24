@@ -21,13 +21,12 @@ import {
  *   • IDLE_BEFORE_WARN ms aktivnosti → otvori modal sa countdown-om
  *   • WARN_DURATION ms u modalu bez akcije → signOut
  *
- * Detaljno:
- *   • Aktivnost = mousemove / keydown / click / scroll / touchstart
- *   • Tab koji nije aktivan i dalje broji (želimo logout i ako je prozor minimizovan)
- *   • Cross-tab sinhronizacija preko BroadcastChannel — kad korisnik radi
- *     u jednom adminskom tabu, drugi tabovi resetuju svoj tajmer.
- *   • Dok je modal otvoren, normalni events NE resetuju tajmer (samo dugmad).
- *     Inače slučajan mousemove iznad modala bi ga sakrio pre nego ga vidiš.
+ * Implementaciona napomena:
+ *   Sav mutable state koji koristi useEffect (warning flag, tajmeri, kanal)
+ *   držimo u ref-ovima, ne u deps. Tako se useEffect postavlja SAMO JEDNOM
+ *   na mount, a sve unutar funkcija čita aktuelni ref. Bez ovoga, svaki
+ *   `setWarning` izaziva re-creation handler-a → cleanup useEffect-a → briše
+ *   tek postavljene tajmere → konflikt sa Dialog state-om.
  */
 
 const IDLE_BEFORE_WARN_MS = 9 * 60 * 1000; // 9 min idle → upozorenje
@@ -46,30 +45,52 @@ export function IdleLogoutWatcher() {
   const [secondsLeft, setSecondsLeft] = useState(WARN_DURATION_MS / 1000);
   const [signingOut, setSigningOut] = useState(false);
 
+  // Tajmeri u ref-ovima — useEffect ne treba da zna o njima
   const warnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bcRef = useRef<BroadcastChannel | null>(null);
 
-  // Logout — zatvori sve tajmere, javi ostalim tabovima i pozovi signOut
+  // Aktuelni warning flag u ref-u — koristi se iz event handler-a koji
+  // ne smeju da menjaju dependency-je
+  const warningRef = useRef(false);
+  const signingOutRef = useRef(false);
+
+  // Pomoćni: očisti sve tajmere bez menjanja state-a
+  const clearAllTimers = useCallback(() => {
+    if (warnTimerRef.current) {
+      clearTimeout(warnTimerRef.current);
+      warnTimerRef.current = null;
+    }
+    if (logoutTimerRef.current) {
+      clearTimeout(logoutTimerRef.current);
+      logoutTimerRef.current = null;
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+  }, []);
+
+  // Stabilna doLogout (nema deps — sve preko ref-a)
   const doLogout = useCallback(() => {
-    if (signingOut) return;
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
     setSigningOut(true);
     bcRef.current?.postMessage({ type: "logout" });
     signOut({ callbackUrl: "/login?reason=idle" });
-  }, [signingOut]);
+  }, []);
 
-  // Reset svih tajmera — zove se iz aktivnosti i "stay" dugmeta
+  // Glavni reset — čisti tajmere, zatvara modal, schedule-uje nov warning ciklus
   const resetTimers = useCallback(() => {
-    if (warnTimerRef.current) clearTimeout(warnTimerRef.current);
-    if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
-    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-
+    clearAllTimers();
+    warningRef.current = false;
     setWarning(false);
     setSecondsLeft(WARN_DURATION_MS / 1000);
 
     warnTimerRef.current = setTimeout(() => {
-      // Pokreni upozorenje
+      // 9 min prošlo → pokaži upozorenje
+      warningRef.current = true;
       setWarning(true);
       setSecondsLeft(WARN_DURATION_MS / 1000);
 
@@ -81,52 +102,32 @@ export function IdleLogoutWatcher() {
         doLogout();
       }, WARN_DURATION_MS);
     }, IDLE_BEFORE_WARN_MS);
-  }, [doLogout]);
+  }, [clearAllTimers, doLogout]);
 
-  // "Activity" handler — broadcast-uj i ostalim tabovima, pa resetuj sebi
+  // Aktivnost iz drugih event-ova — koristi warningRef, NE warning state.
+  // Time se useEffect ne re-runuje pri svakoj promeni warning-a.
   const handleLocalActivity = useCallback(() => {
-    // Dok je modal otvoren, lokalni events NE resetuju (samo dugmad mogu)
-    if (warning) return;
+    if (warningRef.current) return; // dok je modal otvoren, samo dugmad menjaju stanje
     bcRef.current?.postMessage({ type: "activity" });
     resetTimers();
-  }, [warning, resetTimers]);
+  }, [resetTimers]);
 
-  // Setup
+  // Setup — pokreće se SAMO JEDNOM (deps su stabilni callback-ovi)
   useEffect(() => {
-    // BroadcastChannel — fallback ako browser ne podržava (stari Safari)
     if (typeof BroadcastChannel !== "undefined") {
       bcRef.current = new BroadcastChannel(BROADCAST_CHANNEL);
       bcRef.current.onmessage = (e) => {
         if (e.data?.type === "activity") {
-          // Drugi tab je aktivan — resetuj se i ti
-          // (ali ne broadcast-uj opet da ne pravimo petlju)
-          if (warnTimerRef.current) clearTimeout(warnTimerRef.current);
-          if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
-          if (countdownTimerRef.current)
-            clearInterval(countdownTimerRef.current);
-          setWarning(false);
-          setSecondsLeft(WARN_DURATION_MS / 1000);
-          warnTimerRef.current = setTimeout(() => {
-            setWarning(true);
-            setSecondsLeft(WARN_DURATION_MS / 1000);
-            countdownTimerRef.current = setInterval(() => {
-              setSecondsLeft((s) => Math.max(0, s - 1));
-            }, 1000);
-            logoutTimerRef.current = setTimeout(() => {
-              doLogout();
-            }, WARN_DURATION_MS);
-          }, IDLE_BEFORE_WARN_MS);
+          // Drugi tab je aktivan — resetuj nas (resetTimers postavi warning=false)
+          resetTimers();
         } else if (e.data?.type === "logout") {
-          // Drugi tab se izlogovao — i mi se moramo
           window.location.href = "/login?reason=idle";
         }
       };
     }
 
-    // Pokreni inicijalne tajmere
     resetTimers();
 
-    // Slušaj korisničku aktivnost
     for (const ev of ACTIVITY_EVENTS) {
       window.addEventListener(ev, handleLocalActivity, { passive: true });
     }
@@ -135,21 +136,20 @@ export function IdleLogoutWatcher() {
       for (const ev of ACTIVITY_EVENTS) {
         window.removeEventListener(ev, handleLocalActivity);
       }
-      if (warnTimerRef.current) clearTimeout(warnTimerRef.current);
-      if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
-      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+      clearAllTimers();
       bcRef.current?.close();
+      bcRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleLocalActivity]);
+  }, [handleLocalActivity, resetTimers, clearAllTimers]);
 
-  const handleStay = () => {
-    // "Nastavi sesiju" — osveži NextAuth JWT i resetuj tajmere
+  // Dugme "Nastavi sesiju" — eksplicitno zatvara modal, javlja drugim
+  // tabovima da smo aktivni, i osvežava NextAuth JWT (token.exp se resetuje
+  // u jwt callback-u za ADMIN/MANAGER role-ove).
+  const handleStay = useCallback(() => {
     bcRef.current?.postMessage({ type: "activity" });
     resetTimers();
-    // GET /api/auth/session prolazi kroz jwt callback → token.exp se resetuje
     fetch("/api/auth/session", { cache: "no-store" }).catch(() => {});
-  };
+  }, [resetTimers]);
 
   return (
     <Dialog open={warning} onOpenChange={() => {}}>
@@ -170,11 +170,7 @@ export function IdleLogoutWatcher() {
           />
         </div>
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={doLogout}
-            disabled={signingOut}
-          >
+          <Button variant="outline" onClick={doLogout} disabled={signingOut}>
             {signingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Izloguj me sada
           </Button>
