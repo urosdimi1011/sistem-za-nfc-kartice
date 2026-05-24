@@ -1,0 +1,362 @@
+// Dositej Kartice - Multi-tenant sistem za upravljanje karticama u baru
+//
+// Tenant je vrhovni entitet — svaka organizacija (škola, klub) je jedan tenant.
+// Svi ostali entiteti imaju tenantId FK.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── TENANT (ORGANIZACIJA) ────────────────────────────────
+
+model Tenant {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  // Branding (opciono)
+  logoUrl      String?
+  primaryColor String?
+  // Kontakt (opciono)
+  address      String?
+  phone        String?
+  email        String?
+  // Konfiguracija/pravila kao fleksibilan JSON (validira se Zod-om na app sloju)
+  settings     Json     @default("{}")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  persons             Person[]
+  systemAccounts      SystemAccount[]
+  cards               Card[]
+  creditBalances      CreditBalance[]
+  creditTransactions  CreditTransaction[]
+  menuCategories      MenuCategory[]
+  menuItems           MenuItem[]
+  orders              Order[]
+  monthlyCloses       MonthlyClose[]
+  groups              Group[]
+  stockMovements      StockMovement[]
+}
+
+// Generička grupa kojoj osoba (učenik ili zaposleni) može da pripada.
+// Za Dositej su to "Škole" (per-tenant label u Tenant.settings).
+// Drugi tenant može da koristi za "Klub", "Smer", "Smena", "Odeljenje"...
+model Group {
+  id           String   @id @default(cuid())
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  name         String
+  shortName    String?
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  people       Person[]
+
+  @@index([tenantId])
+  @@index([tenantId, displayOrder])
+  @@index([tenantId, isActive])
+}
+
+// Trag o zatvaranju meseca za zaposlene (skidanje od plate)
+model MonthlyClose {
+  id            String        @id @default(cuid())
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  year          Int
+  month         Int           // 1-12
+  totalAmount   Int           // ukupno apsolutni minus koji je zatvoren
+  employeeCount Int           // koliko zaposlenih je obuhvaćeno
+  closedBy      SystemAccount @relation(fields: [closedById], references: [id])
+  closedById    String
+  closedAt      DateTime      @default(now())
+
+  @@unique([tenantId, year, month])
+  @@index([tenantId])
+}
+
+// ─── OSOBE ───────────────────────────────────────────────
+
+model Person {
+  id           String     @id @default(cuid())
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  firstName    String
+  lastName     String
+  jmbg         String?
+  phone        String?
+  email        String?
+  dateOfBirth  DateTime?
+  note         String?
+  personType   PersonType
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Opciona pripadnost grupi (za Dositej: škola). Validnost garantovana FK-om.
+  group        Group?     @relation(fields: [groupId], references: [id])
+  groupId      String?
+
+  cards            Card[]
+  creditBalance    CreditBalance?
+  transactions     CreditTransaction[] @relation("PersonTransactions")
+  ordersAsCustomer Order[]             @relation("CustomerOrders")
+  account          SystemAccount?
+
+  // JMBG mora biti unique unutar tenanta, ne globalno
+  @@unique([tenantId, jmbg])
+  @@index([tenantId])
+  @@index([tenantId, personType])
+  @@index([tenantId, isActive])
+  @@index([tenantId, lastName, firstName])
+  @@index([tenantId, createdAt])
+  @@index([groupId])
+  @@index([tenantId, groupId])
+}
+
+enum PersonType {
+  EMPLOYEE
+  STUDENT
+}
+
+// ─── SISTEM NALOZI (login) ───────────────────────────────
+
+model SystemAccount {
+  id                 String     @id @default(cuid())
+  tenant             Tenant     @relation(fields: [tenantId], references: [id])
+  tenantId           String
+  email              String     @unique // email je globalno unique — pojednostavljuje login flow
+  passwordHash       String
+  role               SystemRole
+  person             Person?    @relation(fields: [personId], references: [id])
+  personId           String?    @unique
+  isActive           Boolean    @default(true)
+  createdAt          DateTime   @default(now())
+  passwordChangedAt  DateTime   @default(now())
+  lastLoginAt        DateTime?
+
+  createdBy          SystemAccount?  @relation("AccountCreator", fields: [createdById], references: [id])
+  createdById        String?
+  createdAccounts    SystemAccount[] @relation("AccountCreator")
+
+  ordersAsBartender Order[]             @relation("BartenderOrders")
+  performedTx       CreditTransaction[] @relation("PerformedTransactions")
+  registeredCards   Card[]              @relation("RegisteredCards")
+  monthlyCloses     MonthlyClose[]
+  stockMovements    StockMovement[]
+
+  @@index([tenantId])
+  @@index([tenantId, role])
+  @@index([tenantId, isActive])
+}
+
+enum SystemRole {
+  ADMIN
+  MANAGER
+  BARTENDER
+}
+
+// ─── KARTICE ─────────────────────────────────────────────
+
+model Card {
+  id             String        @id @default(cuid())
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  uid            String
+  person         Person        @relation(fields: [personId], references: [id])
+  personId       String
+  isActive       Boolean       @default(true)
+  registeredAt   DateTime      @default(now())
+  deactivatedAt  DateTime?
+  registeredBy   SystemAccount @relation("RegisteredCards", fields: [registeredById], references: [id])
+  registeredById String
+
+  replacedBy   Card?   @relation("CardReplacement", fields: [replacedById], references: [id])
+  replacedById String? @unique
+  replaces     Card?   @relation("CardReplacement")
+
+  orders Order[]
+
+  // UID unique unutar tenanta (različiti tenanti mogu imati istovremeno istu fizičku karticu)
+  @@unique([tenantId, uid])
+  @@index([tenantId])
+  @@index([tenantId, personId])
+  @@index([tenantId, isActive])
+  @@index([tenantId, registeredAt])
+  @@index([registeredById])
+}
+
+// ─── KREDITI ─────────────────────────────────────────────
+
+model CreditBalance {
+  id        String   @id @default(cuid())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  person    Person   @relation(fields: [personId], references: [id])
+  personId  String   @unique
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model CreditTransaction {
+  id            String          @id @default(cuid())
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  person        Person          @relation("PersonTransactions", fields: [personId], references: [id])
+  personId      String
+  amount        Int
+  balanceAfter  Int
+  type          TransactionType
+  note          String?
+  performedBy   SystemAccount   @relation("PerformedTransactions", fields: [performedById], references: [id])
+  performedById String
+  order         Order?          @relation(fields: [orderId], references: [id])
+  orderId       String?         @unique
+  createdAt     DateTime        @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, type])
+  @@index([personId, createdAt])
+  @@index([performedById])
+}
+
+enum TransactionType {
+  TOPUP
+  MANUAL_DEDUCT
+  ORDER
+  MONTHLY_RESET
+}
+
+// ─── KARTA PIĆA ──────────────────────────────────────────
+
+model MenuCategory {
+  id           String     @id @default(cuid())
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  name         String
+  icon         String     @default("UtensilsCrossed")
+  color        String     @default("zinc")
+  displayOrder Int        @default(0)
+  isVisible    Boolean    @default(true)
+  items        MenuItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, displayOrder])
+}
+
+model MenuItem {
+  id           String       @id @default(cuid())
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  category     MenuCategory @relation(fields: [categoryId], references: [id])
+  categoryId   String
+  name         String
+  description  String?
+  icon         String?
+  creditPrice  Int
+  isAvailable  Boolean      @default(true)
+  displayOrder Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Inventar (opciono per-item).
+  // trackStock=false → stock se ignoriše; ponašanje kao i pre (samo isAvailable kontroliše vidljivost).
+  // trackStock=true  → svaka prodaja smanjuje stock, na 0 auto-hide, ispod threshold-a warning badge.
+  trackStock          Boolean         @default(false)
+  stock               Int             @default(0)
+  lowStockThreshold   Int             @default(5)
+
+  orderItems     OrderItem[]
+  stockMovements StockMovement[]
+
+  @@index([tenantId])
+  @@index([categoryId, displayOrder])
+  @@index([tenantId, isAvailable])
+  @@index([tenantId, trackStock])
+}
+
+// Audit log svih promena stanja zaliha.
+// Za svaku promenu MenuItem.stock pravi se red ovde u istoj $transaction,
+// pa imamo punu istoriju ("ko je kad dopunio, koliko je prodato u nedelji").
+model StockMovement {
+  id            String              @id @default(cuid())
+  tenant        Tenant              @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  menuItem      MenuItem            @relation(fields: [menuItemId], references: [id])
+  menuItemId    String
+  type          StockMovementType
+  // Signed delta: + za RESTOCK, - za SALE/WASTE, oba znaka za ADJUSTMENT.
+  quantity      Int
+  // Snapshot stanja PO promeni — radi brzog izveštavanja bez rekonstrukcije.
+  stockAfter    Int
+  note          String?
+  // Za SALE — link na narudžbinu da znamo iz koga reda dolazi
+  order         Order?              @relation(fields: [orderId], references: [id])
+  orderId       String?
+  performedBy   SystemAccount?      @relation(fields: [performedById], references: [id])
+  performedById String?
+  createdAt     DateTime            @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@index([menuItemId, createdAt])
+  @@index([tenantId, type])
+}
+
+enum StockMovementType {
+  RESTOCK     // dopuna (admin dodaje zalihe)
+  SALE        // prodaja preko bar terminala (auto)
+  ADJUSTMENT  // ručna korekcija (admin ispravlja stanje, +/-)
+  WASTE       // otpis (proliveno, isteklo, polomljeno)
+}
+
+// ─── NARUDŽBINE ──────────────────────────────────────────
+
+model Order {
+  id           String        @id @default(cuid())
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  card         Card          @relation(fields: [cardId], references: [id])
+  cardId       String
+  customer     Person        @relation("CustomerOrders", fields: [customerId], references: [id])
+  customerId   String
+  bartender    SystemAccount @relation("BartenderOrders", fields: [bartenderId], references: [id])
+  bartenderId  String
+  totalCredits Int
+  createdAt    DateTime      @default(now())
+
+  items          OrderItem[]
+  transaction    CreditTransaction?
+  stockMovements StockMovement[]
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([bartenderId, createdAt])
+  @@index([cardId])
+}
+
+model OrderItem {
+  id                String   @id @default(cuid())
+  order             Order    @relation(fields: [orderId], references: [id])
+  orderId           String
+  menuItem          MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItemId        String
+  quantity          Int
+  creditPriceAtTime Int
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
