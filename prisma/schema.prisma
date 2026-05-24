@@ -9,9 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 // ─── TENANT (ORGANIZACIJA) ────────────────────────────────
@@ -33,17 +31,17 @@ model Tenant {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  persons             Person[]
-  systemAccounts      SystemAccount[]
-  cards               Card[]
-  creditBalances      CreditBalance[]
-  creditTransactions  CreditTransaction[]
-  menuCategories      MenuCategory[]
-  menuItems           MenuItem[]
-  orders              Order[]
-  monthlyCloses       MonthlyClose[]
-  groups              Group[]
-  stockMovements      StockMovement[]
+  persons            Person[]
+  systemAccounts     SystemAccount[]
+  cards              Card[]
+  creditBalances     CreditBalance[]
+  creditTransactions CreditTransaction[]
+  menuCategories     MenuCategory[]
+  menuItems          MenuItem[]
+  orders             Order[]
+  monthlyCloses      MonthlyClose[]
+  groups             Group[]
+  stockMovements     StockMovement[]
 }
 
 // Generička grupa kojoj osoba (učenik ili zaposleni) može da pripada.
@@ -60,7 +58,7 @@ model Group {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  people       Person[]
+  people Person[]
 
   @@index([tenantId])
   @@index([tenantId, displayOrder])
@@ -73,9 +71,9 @@ model MonthlyClose {
   tenant        Tenant        @relation(fields: [tenantId], references: [id])
   tenantId      String
   year          Int
-  month         Int           // 1-12
-  totalAmount   Int           // ukupno apsolutni minus koji je zatvoren
-  employeeCount Int           // koliko zaposlenih je obuhvaćeno
+  month         Int // 1-12
+  totalAmount   Int // ukupno apsolutni minus koji je zatvoren
+  employeeCount Int // koliko zaposlenih je obuhvaćeno
   closedBy      SystemAccount @relation(fields: [closedById], references: [id])
   closedById    String
   closedAt      DateTime      @default(now())
@@ -87,24 +85,24 @@ model MonthlyClose {
 // ─── OSOBE ───────────────────────────────────────────────
 
 model Person {
-  id           String     @id @default(cuid())
-  tenant       Tenant     @relation(fields: [tenantId], references: [id])
-  tenantId     String
-  firstName    String
-  lastName     String
-  jmbg         String?
-  phone        String?
-  email        String?
-  dateOfBirth  DateTime?
-  note         String?
-  personType   PersonType
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id          String     @id @default(cuid())
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  tenantId    String
+  firstName   String
+  lastName    String
+  jmbg        String?
+  phone       String?
+  email       String?
+  dateOfBirth DateTime?
+  note        String?
+  personType  PersonType
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   // Opciona pripadnost grupi (za Dositej: škola). Validnost garantovana FK-om.
-  group        Group?     @relation(fields: [groupId], references: [id])
-  groupId      String?
+  group   Group?  @relation(fields: [groupId], references: [id])
+  groupId String?
 
   cards            Card[]
   creditBalance    CreditBalance?
@@ -131,22 +129,22 @@ enum PersonType {
 // ─── SISTEM NALOZI (login) ───────────────────────────────
 
 model SystemAccount {
-  id                 String     @id @default(cuid())
-  tenant             Tenant     @relation(fields: [tenantId], references: [id])
-  tenantId           String
-  email              String     @unique // email je globalno unique — pojednostavljuje login flow
-  passwordHash       String
-  role               SystemRole
-  person             Person?    @relation(fields: [personId], references: [id])
-  personId           String?    @unique
-  isActive           Boolean    @default(true)
-  createdAt          DateTime   @default(now())
-  passwordChangedAt  DateTime   @default(now())
-  lastLoginAt        DateTime?
+  id                String     @id @default(cuid())
+  tenant            Tenant     @relation(fields: [tenantId], references: [id])
+  tenantId          String
+  email             String     @unique // email je globalno unique — pojednostavljuje login flow
+  passwordHash      String
+  role              SystemRole
+  person            Person?    @relation(fields: [personId], references: [id])
+  personId          String?    @unique
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  passwordChangedAt DateTime   @default(now())
+  lastLoginAt       DateTime?
 
-  createdBy          SystemAccount?  @relation("AccountCreator", fields: [createdById], references: [id])
-  createdById        String?
-  createdAccounts    SystemAccount[] @relation("AccountCreator")
+  createdBy       SystemAccount?  @relation("AccountCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdAccounts SystemAccount[] @relation("AccountCreator")
 
   ordersAsBartender Order[]             @relation("BartenderOrders")
   performedTx       CreditTransaction[] @relation("PerformedTransactions")
@@ -274,9 +272,9 @@ model MenuItem {
   // Inventar (opciono per-item).
   // trackStock=false → stock se ignoriše; ponašanje kao i pre (samo isAvailable kontroliše vidljivost).
   // trackStock=true  → svaka prodaja smanjuje stock, na 0 auto-hide, ispod threshold-a warning badge.
-  trackStock          Boolean         @default(false)
-  stock               Int             @default(0)
-  lowStockThreshold   Int             @default(5)
+  trackStock        Boolean @default(false)
+  stock             Int     @default(0)
+  lowStockThreshold Int     @default(5)
 
   orderItems     OrderItem[]
   stockMovements StockMovement[]
@@ -291,10 +289,10 @@ model MenuItem {
 // Za svaku promenu MenuItem.stock pravi se red ovde u istoj $transaction,
 // pa imamo punu istoriju ("ko je kad dopunio, koliko je prodato u nedelji").
 model StockMovement {
-  id            String              @id @default(cuid())
-  tenant        Tenant              @relation(fields: [tenantId], references: [id])
+  id            String            @id @default(cuid())
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
   tenantId      String
-  menuItem      MenuItem            @relation(fields: [menuItemId], references: [id])
+  menuItem      MenuItem          @relation(fields: [menuItemId], references: [id])
   menuItemId    String
   type          StockMovementType
   // Signed delta: + za RESTOCK, - za SALE/WASTE, oba znaka za ADJUSTMENT.
@@ -303,11 +301,11 @@ model StockMovement {
   stockAfter    Int
   note          String?
   // Za SALE — link na narudžbinu da znamo iz koga reda dolazi
-  order         Order?              @relation(fields: [orderId], references: [id])
+  order         Order?            @relation(fields: [orderId], references: [id])
   orderId       String?
-  performedBy   SystemAccount?      @relation(fields: [performedById], references: [id])
+  performedBy   SystemAccount?    @relation(fields: [performedById], references: [id])
   performedById String?
-  createdAt     DateTime            @default(now())
+  createdAt     DateTime          @default(now())
 
   @@index([tenantId])
   @@index([tenantId, createdAt])
@@ -316,10 +314,10 @@ model StockMovement {
 }
 
 enum StockMovementType {
-  RESTOCK     // dopuna (admin dodaje zalihe)
-  SALE        // prodaja preko bar terminala (auto)
-  ADJUSTMENT  // ručna korekcija (admin ispravlja stanje, +/-)
-  WASTE       // otpis (proliveno, isteklo, polomljeno)
+  RESTOCK // dopuna (admin dodaje zalihe)
+  SALE // prodaja preko bar terminala (auto)
+  ADJUSTMENT // ručna korekcija (admin ispravlja stanje, +/-)
+  WASTE // otpis (proliveno, isteklo, polomljeno)
 }
 
 // ─── NARUDŽBINE ──────────────────────────────────────────
