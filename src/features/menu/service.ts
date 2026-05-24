@@ -135,9 +135,38 @@ export async function updateItem(
   });
 }
 
+/**
+ * Smart delete:
+ *   • Ako stavka NIKAD nije bila u porudžbini (i nema StockMovement) → fizički delete
+ *   • Inače → soft delete (archivedAt = now). Time čuvamo istoriju porudžbina
+ *     i mesečnih izveštaja a stavka nestaje iz menija/bara/karte pića.
+ *
+ * Korisnik ne primeti razliku — UI dugme "Obriši" automatski radi pravu stvar.
+ */
 export async function deleteItem(tenantId: string, id: string) {
-  const exists = await prisma.menuItem.findFirst({ where: { id, tenantId } });
+  const exists = await prisma.menuItem.findFirst({
+    where: { id, tenantId },
+    select: { id: true },
+  });
   if (!exists) throw new MenuServiceError("NOT_FOUND", "Stavka ne postoji");
+
+  const [orderRefs, stockRefs] = await Promise.all([
+    prisma.orderItem.count({ where: { menuItemId: id } }),
+    prisma.stockMovement.count({ where: { menuItemId: id } }),
+  ]);
+
+  if (orderRefs > 0 || stockRefs > 0) {
+    // Soft delete — istorija ostaje netaknuta
+    return prisma.menuItem.update({
+      where: { id },
+      data: {
+        archivedAt: new Date(),
+        isAvailable: false, // sigurnosno — neka ne uđe u listAvailableMenu ni iz čega
+      },
+    });
+  }
+
+  // Nikad korišćena — bezbedno za fizički delete
   return prisma.menuItem.delete({ where: { id } });
 }
 

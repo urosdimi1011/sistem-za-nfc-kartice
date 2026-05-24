@@ -52,10 +52,12 @@ export const peopleQuerySchema = z.object({
     .or(z.literal("").transform(() => undefined)),
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(5).max(100).default(20),
+  // Default: najnovije dodate osobe na vrh — najkorisniji prikaz nakon dodavanja.
+  // Klik na header u tabeli i dalje menja sort preko URL param-a.
   sort: z
     .enum(["lastName", "firstName", "personType", "createdAt"])
-    .default("lastName"),
-  order: z.enum(["asc", "desc"]).default("asc"),
+    .default("createdAt"),
+  order: z.enum(["asc", "desc"]).default("desc"),
 });
 
 export type PeopleQuery = z.infer<typeof peopleQuerySchema>;

@@ -32,12 +32,12 @@ export function PeopleTable({ items, groups, groupLabel, requireGroup }: PeopleT
         <TableHeader>
           <TableRow>
             <TableHead>
-              <SortableHeader field="lastName" defaultSort="lastName">
+              <SortableHeader field="lastName" defaultSort="createdAt">
                 Ime i prezime
               </SortableHeader>
             </TableHead>
             <TableHead>
-              <SortableHeader field="personType" defaultSort="lastName">
+              <SortableHeader field="personType" defaultSort="createdAt">
                 Tip
               </SortableHeader>
             </TableHead>
@@ -48,7 +48,11 @@ export function PeopleTable({ items, groups, groupLabel, requireGroup }: PeopleT
             <TableHead>Kartica</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>
-              <SortableHeader field="createdAt" defaultSort="lastName">
+              <SortableHeader
+                field="createdAt"
+                defaultSort="createdAt"
+                defaultOrder="desc"
+              >
                 Dodato
               </SortableHeader>
             </TableHead>

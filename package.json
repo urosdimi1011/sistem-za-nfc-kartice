@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset-demo": "tsx prisma/reset-for-demo.ts",
     "db:load-test": "tsx prisma/load-test.ts",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio"

@@ -46,12 +46,22 @@ export async function listPeople(query: PeopleQuery): Promise<PeopleListResult> 
     where.groupId = groupId;
   }
   if (search && search.length > 0) {
-    const term = search.trim();
-    where.OR = [
-      { firstName: { contains: term, mode: "insensitive" } },
-      { lastName: { contains: term, mode: "insensitive" } },
-      { jmbg: { contains: term } },
-    ];
+    // Multi-token search: razdvoji upit po razmacima i traži da SVAKI token
+    // postoji u nekom polju (firstName, lastName ili jmbg). Time radi:
+    //   "Petar Petr" → matches Petar Petrović (token1 u firstName, token2 u lastName)
+    //   "Petr Pe"    → matches Petar Petrović (oba u različitim poljima)
+    //   "Petar"      → matches Petar Petrović (jedan token, jedno polje)
+    //   "12345"      → matches JMBG koji počinje sa 12345
+    const tokens = search.trim().split(/\s+/).filter((t) => t.length > 0);
+    if (tokens.length > 0) {
+      where.AND = tokens.map((t) => ({
+        OR: [
+          { firstName: { contains: t, mode: "insensitive" } },
+          { lastName: { contains: t, mode: "insensitive" } },
+          { jmbg: { contains: t } },
+        ],
+      }));
+    }
   }
 
   const [total, rows] = await Promise.all([

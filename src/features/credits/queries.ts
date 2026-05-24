@@ -46,12 +46,18 @@ export async function listTransactions(
     };
   }
   if (search && search.length > 0) {
-    where.person = {
-      OR: [
-        { firstName: { contains: search, mode: "insensitive" } },
-        { lastName: { contains: search, mode: "insensitive" } },
-      ],
-    };
+    // Multi-token search — vidi people/queries.ts za detalje
+    const tokens = search.trim().split(/\s+/).filter((t) => t.length > 0);
+    if (tokens.length > 0) {
+      where.person = {
+        AND: tokens.map((t) => ({
+          OR: [
+            { firstName: { contains: t, mode: "insensitive" } },
+            { lastName: { contains: t, mode: "insensitive" } },
+          ],
+        })),
+      };
+    }
   }
 
   const [total, rows] = await Promise.all([

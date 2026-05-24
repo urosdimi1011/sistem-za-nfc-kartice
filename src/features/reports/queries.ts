@@ -87,11 +87,17 @@ export async function getMonthlyReport(
     ...(typeFilter ? { personType: typeFilter } : {}),
   };
   if (searchTerm && searchTerm.length > 0) {
-    peopleWhere.OR = [
-      { firstName: { contains: searchTerm, mode: "insensitive" } },
-      { lastName: { contains: searchTerm, mode: "insensitive" } },
-      { jmbg: { contains: searchTerm } },
-    ];
+    // Multi-token — vidi people/queries.ts
+    const tokens = searchTerm.split(/\s+/).filter((t) => t.length > 0);
+    if (tokens.length > 0) {
+      peopleWhere.AND = tokens.map((t) => ({
+        OR: [
+          { firstName: { contains: t, mode: "insensitive" } },
+          { lastName: { contains: t, mode: "insensitive" } },
+          { jmbg: { contains: t } },
+        ],
+      }));
+    }
   }
   if (groupId === "__none__") {
     peopleWhere.groupId = null;
@@ -394,11 +400,16 @@ export async function getReportFilterCounts(args: {
   if (groupId === "__none__") where.groupId = null;
   else if (groupId) where.groupId = groupId;
   if (searchTerm && searchTerm.length > 0) {
-    where.OR = [
-      { firstName: { contains: searchTerm, mode: "insensitive" } },
-      { lastName: { contains: searchTerm, mode: "insensitive" } },
-      { jmbg: { contains: searchTerm } },
-    ];
+    const tokens = searchTerm.split(/\s+/).filter((t) => t.length > 0);
+    if (tokens.length > 0) {
+      where.AND = tokens.map((t) => ({
+        OR: [
+          { firstName: { contains: t, mode: "insensitive" } },
+          { lastName: { contains: t, mode: "insensitive" } },
+          { jmbg: { contains: t } },
+        ],
+      }));
+    }
   }
 
   const [totalPeopleInScope, withActivityCount] = await Promise.all([

@@ -41,13 +41,18 @@ export async function listCards(query: CardsQuery): Promise<CardsListResult> {
   if (personId) where.personId = personId;
   if (status !== "ALL") where.isActive = status === "ACTIVE";
   if (search && search.length > 0) {
-    const term = search.trim();
-    where.person = {
-      OR: [
-        { firstName: { contains: term, mode: "insensitive" } },
-        { lastName: { contains: term, mode: "insensitive" } },
-      ],
-    };
+    // Multi-token — radi "Petar Petr", "Petr Pet", "Petar"
+    const tokens = search.trim().split(/\s+/).filter((t) => t.length > 0);
+    if (tokens.length > 0) {
+      where.person = {
+        AND: tokens.map((t) => ({
+          OR: [
+            { firstName: { contains: t, mode: "insensitive" } },
+            { lastName: { contains: t, mode: "insensitive" } },
+          ],
+        })),
+      };
+    }
   }
 
   const [total, rows] = await Promise.all([
@@ -104,18 +109,20 @@ export async function searchPeopleForCard(
   pageSize = 20,
 ) {
   const tenantId = await requireTenantId();
-  const term = search.trim();
+  const tokens = search.trim().split(/\s+/).filter((t) => t.length > 0);
   const items = await prisma.person.findMany({
     where: {
       tenantId,
       isActive: true,
-      ...(term.length > 0
+      ...(tokens.length > 0
         ? {
-            OR: [
-              { firstName: { contains: term, mode: "insensitive" } },
-              { lastName: { contains: term, mode: "insensitive" } },
-              { jmbg: { contains: term } },
-            ],
+            AND: tokens.map((t) => ({
+              OR: [
+                { firstName: { contains: t, mode: "insensitive" } },
+                { lastName: { contains: t, mode: "insensitive" } },
+                { jmbg: { contains: t } },
+              ],
+            })),
           }
         : {}),
     },

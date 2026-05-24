@@ -276,6 +276,13 @@ model MenuItem {
   stock             Int     @default(0)
   lowStockThreshold Int     @default(5)
 
+  // Soft delete. Ne brišemo MenuItem fizički ako je već bio prodavan jer
+  // bi to oborilo OrderItem FK i izgubili bismo istoriju. Umesto toga:
+  //   archivedAt = null  → aktivna stavka (vidi se u meniju i baru)
+  //   archivedAt != null → arhivirana (ne prikazuje se u UI-ju, ali postoji
+  //                        za istoriju porudžbina i mesečne izveštaje)
+  archivedAt DateTime?
+
   orderItems     OrderItem[]
   stockMovements StockMovement[]
 

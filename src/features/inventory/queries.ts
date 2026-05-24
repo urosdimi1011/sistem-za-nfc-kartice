@@ -26,7 +26,11 @@ function statusOf(stock: number, threshold: number): InventoryStatus {
 
 export async function listInventory(query: InventoryQuery): Promise<InventoryRow[]> {
   const tenantId = await requireTenantId();
-  const where: Record<string, unknown> = { tenantId, trackStock: true };
+  const where: Record<string, unknown> = {
+    tenantId,
+    trackStock: true,
+    archivedAt: null,
+  };
 
   if (query.search && query.search.trim().length > 0) {
     where.name = { contains: query.search.trim(), mode: "insensitive" };
@@ -70,7 +74,7 @@ export async function getLowStockSummary(): Promise<{
 }> {
   const tenantId = await requireTenantId();
   const items = await prisma.menuItem.findMany({
-    where: { tenantId, trackStock: true },
+    where: { tenantId, trackStock: true, archivedAt: null },
     orderBy: { stock: "asc" },
     select: {
       id: true,

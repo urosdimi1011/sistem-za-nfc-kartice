@@ -38,6 +38,8 @@ export async function listFullMenu(): Promise<MenuCategoryWithItems[]> {
       isVisible: true,
       displayOrder: true,
       items: {
+        // Sakrij arhivirane (soft-deleted) — admin ih ne vidi u Karti pića
+        where: { archivedAt: null },
         orderBy: { displayOrder: "asc" },
         select: {
           id: true,
@@ -68,7 +70,8 @@ export async function listAvailableMenu() {
       color: true,
       items: {
         // isAvailable=false znači stavka je sakrivena (ili ručno, ili auto kad stock=0)
-        where: { isAvailable: true },
+        // archivedAt != null znači stavka je soft-deleted (admin je "obrisao")
+        where: { isAvailable: true, archivedAt: null },
         orderBy: { displayOrder: "asc" },
         select: {
           id: true,
