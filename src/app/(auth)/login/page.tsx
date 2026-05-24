@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LoginForm } from "@/features/auth/components/login-form";
 
 export default function LoginPage() {
@@ -8,7 +9,11 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold">Dositej Kartice</h1>
           <p className="mt-1 text-sm text-zinc-500">Prijava</p>
         </div>
-        <LoginForm />
+        {/* Suspense je obavezan jer LoginForm koristi useSearchParams.
+            Bez ovoga Next bail-uje iz static pre-render-a → build error. */}
+        <Suspense fallback={null}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );
