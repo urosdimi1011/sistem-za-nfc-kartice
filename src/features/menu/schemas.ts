@@ -28,10 +28,21 @@ export const itemFormSchema = z.object({
     .nonnegative("Cena ne može biti negativna")
     .max(1_000_000, "Cena je prevelika"),
   isAvailable: z.boolean(),
-  // Inventar — opciono
-  trackStock: z.boolean(),
-  stock: z.number().int().nonnegative().max(100000),
-  lowStockThreshold: z.number().int().nonnegative().max(10000),
+  // Inventar. trackStock je u dijalogu uvek prikazan (checkbox), stock i prag
+  // se renderuju samo kad je trackStock=true. Forma ih uvek inicijalizuje
+  // (vidi item-form-dialog.tsx) — defaults: trackStock=false, stock=0, threshold=5.
+  // Srpske custom poruke da bismo izbegli Zod-ove engleske default-e.
+  trackStock: z.boolean({ message: "Označi da li se prati stanje" }),
+  stock: z
+    .number({ message: "Stanje mora biti broj" })
+    .int("Stanje mora biti ceo broj")
+    .nonnegative("Stanje ne sme biti negativno")
+    .max(100000, "Stanje je preveliko"),
+  lowStockThreshold: z
+    .number({ message: "Prag upozorenja mora biti broj" })
+    .int("Prag mora biti ceo broj")
+    .nonnegative("Prag ne sme biti negativan")
+    .max(10000, "Prag je preveliki"),
 });
 
 export type ItemFormInput = z.infer<typeof itemFormSchema>;

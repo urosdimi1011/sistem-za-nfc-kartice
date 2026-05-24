@@ -81,6 +81,11 @@ export function ItemFormDialog({
         icon: (item?.icon as ItemFormInput["icon"]) ?? null,
         creditPrice: item?.creditPrice ?? 0,
         isAvailable: item?.isAvailable ?? true,
+        // BITNO: ova tri polja moraju biti u reset-u, inače postaju undefined
+        // kad se dialog ponovo otvori → Zod baca "expected number, received undefined".
+        trackStock: item?.trackStock ?? false,
+        stock: item?.stock ?? 0,
+        lowStockThreshold: item?.lowStockThreshold ?? 5,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
