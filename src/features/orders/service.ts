@@ -13,6 +13,7 @@ export class OrderServiceError extends Error {
       | "ITEM_NOT_AVAILABLE"
       | "INSUFFICIENT_CREDITS"
       | "INSUFFICIENT_STOCK"
+      | "DAILY_LIMIT_REACHED"
       | "EMPTY_CART",
     message: string,
     public extra?: Record<string, unknown>,
@@ -152,6 +153,41 @@ export async function createOrder(params: CreateOrderParams) {
         `Premašen maksimalni minus zaposlenog (−${settings.maxNegativeBalanceEmployee}). Stanje bi bilo ${newBalance}.`,
         { currentBalance, totalCredits, missing: -newBalance },
       );
+    }
+
+    // ANTI-ZLOUPOTREBA: dnevni limit potrošnje po osobi.
+    // Ako je tenant podesio limit, sabiraju se ORDER+MANUAL_DEDUCT za današnji dan.
+    // Sprečava da klonirana kartica ispumpa ceo mesečni kredit za par sati.
+    if (settings.maxDailySpendPerPerson !== null) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const todaySpentAgg = await tx.creditTransaction.aggregate({
+        where: {
+          tenantId: params.tenantId,
+          personId: card.person.id,
+          type: { in: ["ORDER", "MANUAL_DEDUCT"] },
+          createdAt: { gte: startOfDay },
+        },
+        _sum: { amount: true },
+      });
+      // amount za ORDER/DEDUCT je negativan, uzimamo apsolutnu vrednost
+      const todaySpent = Math.abs(todaySpentAgg._sum.amount ?? 0);
+      const wouldBe = todaySpent + totalCredits;
+
+      if (wouldBe > settings.maxDailySpendPerPerson) {
+        const remaining = Math.max(0, settings.maxDailySpendPerPerson - todaySpent);
+        throw new OrderServiceError(
+          "DAILY_LIMIT_REACHED",
+          `Dnevni limit dostignut. Iskorišćeno: ${todaySpent}, limit: ${settings.maxDailySpendPerPerson}, preostalo: ${remaining}.`,
+          {
+            todaySpent,
+            dailyLimit: settings.maxDailySpendPerPerson,
+            remaining,
+            requested: totalCredits,
+          },
+        );
+      }
     }
 
     const order = await tx.order.create({

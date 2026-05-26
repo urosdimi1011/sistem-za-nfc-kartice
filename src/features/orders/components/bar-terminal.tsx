@@ -17,6 +17,12 @@ const LAYOUT_STORAGE_KEY = "bar-menu-layout";
 
 interface BarTerminalProps {
   categories: BarMenuCategory[];
+  initialStats: { todayOrderCount: number; todayRevenue: number };
+}
+
+interface BlockedInfo {
+  name: string;
+  reason: string;
 }
 
 interface SuccessInfo {
@@ -27,16 +33,21 @@ interface SuccessInfo {
 
 const AUTO_RESET_AFTER_SUCCESS_MS = 3000;
 
-export function BarTerminal({ categories }: BarTerminalProps) {
+export function BarTerminal({
+  categories,
+  initialStats,
+}: BarTerminalProps) {
   const [lookup, setLookup] = useState<BarCardLookup | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [lookupPending, setLookupPending] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [blockedInfo, setBlockedInfo] = useState<BlockedInfo | null>(null);
   const [, startTransition] = useTransition();
   const [isConfirming, setIsConfirming] = useState(false);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
   const [menuLayout, setMenuLayout] = useState<BarMenuLayout>("grid");
   const [search, setSearch] = useState("");
+  const [stats, setStats] = useState(initialStats);
 
   // Hidratiraj layout iz localStorage
   useEffect(() => {
@@ -60,6 +71,7 @@ export function BarTerminal({ categories }: BarTerminalProps) {
     setLookup(null);
     setCart([]);
     setLookupError(null);
+    setBlockedInfo(null);
   }, []);
 
   // Auto-reset posle uspeha
@@ -74,9 +86,10 @@ export function BarTerminal({ categories }: BarTerminalProps) {
 
   const handleScan = useCallback(
     async (uid: string) => {
-      if (lookupPending || lookup || success) return;
+      if (lookupPending || lookup || success || blockedInfo) return;
       setLookupPending(true);
       setLookupError(null);
+      setBlockedInfo(null);
       try {
         const result = await lookupCardAction(uid);
         if (!result.ok) {
@@ -87,12 +100,32 @@ export function BarTerminal({ categories }: BarTerminalProps) {
           setLookupError(`Kartica "${uid}" nije registrovana`);
           return;
         }
-        setLookup(result.data);
+
+        const card = result.data;
+        const fullName = `${card.person.firstName} ${card.person.lastName}`;
+
+        // Provera pre nego što se uđe u meni — bolji UX nego da se otkrije pri naplati
+        if (!card.isActive) {
+          setBlockedInfo({
+            name: fullName,
+            reason: "Ova kartica je deaktivirana. Obavesti administratora.",
+          });
+          return;
+        }
+        if (!card.person.isActive) {
+          setBlockedInfo({
+            name: fullName,
+            reason: "Osoba nije aktivna u sistemu.",
+          });
+          return;
+        }
+
+        setLookup(card);
       } finally {
         setLookupPending(false);
       }
     },
-    [lookupPending, lookup, success],
+    [lookupPending, lookup, success, blockedInfo],
   );
 
   const handleAddToCart = (itemId: string) => {
@@ -165,6 +198,11 @@ export function BarTerminal({ categories }: BarTerminalProps) {
           totalCredits: result.data!.totalCredits,
           newBalance: result.data!.newBalance,
         });
+        // Inkrement live brojača — vide se odmah na scan ekranu
+        setStats((s) => ({
+          todayOrderCount: s.todayOrderCount + 1,
+          todayRevenue: s.todayRevenue + result.data!.totalCredits,
+        }));
       } finally {
         setIsConfirming(false);
       }
@@ -208,18 +246,18 @@ export function BarTerminal({ categories }: BarTerminalProps) {
 
   if (!lookup) {
     return (
-      <div className="flex h-full flex-col">
-        <div className="flex shrink-0 items-center justify-end border-b border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-          <LayoutToggle value={menuLayout} onChange={updateLayout} />
-        </div>
-        <div className="flex-1 min-h-0">
-          <ScanWaiting
-            onScan={handleScan}
-            isProcessing={lookupPending}
-            errorMessage={lookupError}
-          />
-        </div>
-      </div>
+      <ScanWaiting
+        onScan={handleScan}
+        isProcessing={lookupPending}
+        errorMessage={lookupError}
+        blockedInfo={blockedInfo}
+        onClearError={() => {
+          setLookupError(null);
+          setBlockedInfo(null);
+        }}
+        todayOrderCount={stats.todayOrderCount}
+        todayRevenue={stats.todayRevenue}
+      />
     );
   }
 

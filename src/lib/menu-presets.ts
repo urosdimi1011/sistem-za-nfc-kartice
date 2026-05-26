@@ -1,29 +1,54 @@
 // Kurirana lista ikona iz lucide-react za hranu/piće.
 // Vrednosti su tačni nazivi komponenti — koriste se i u bazi i u UI.
 
+// Kurirana lista lucide-react ikona za hranu/piće.
+// Imena su tačni Pascal-case nazivi komponenti (lucide-react export-uje tako).
 export const MENU_ICONS = [
-  "Coffee",
-  "CupSoda",
-  "Wine",
-  "Beer",
-  "Milk",
-  "GlassWater",
-  "Martini",
+  // Topli napici
+  "Coffee", // kafa, čaj, topla čokolada — šolja sa parom
+  "Soup", // ako želiš da naglasiš toplo (paru) za čaj
+
+  // Hladni napici i flašice
+  "CupSoda", // čaša sa slamkom (sok, kola)
+  "GlassWater", // čaša vode
+  "Milk", // kartonska mlečna ambalaža
+  "BottleWine", // flašica — koristi i za druge boce
+  "Wine", // čaša vina
+  "Beer", // pivska čaša
+  "Martini", // koktel
+
+  // Hrana — sendviči, brza
   "Pizza",
   "Sandwich",
+  "Hamburger",
+  "Croissant",
+
+  // Meso
+  "Beef", // svinjsko / govedo
+  "Drumstick", // pileći but
+  "Ham", // šunka
+  "Fish", // riba
+  "EggFried", // jaje na oko (sa žumancetom)
+  "Egg", // standardno jaje
+
+  // Topla jela / činije
+  "Salad",
+  "IceCreamBowl", // tanjir/činija — koristi i kao "tanjir hrane" generički
+
+  // Slatkiši
   "Cookie",
   "Cake",
+  "Donut",
   "IceCream",
-  "Soup",
-  "Salad",
+
+  // Voće / dodatak
   "Apple",
   "Banana",
   "Carrot",
-  "Croissant",
-  "Donut",
-  "Egg",
-  "Fish",
-  "UtensilsCrossed",
+
+  // Generički
+  "ChefHat", // priprema, dnevni meni
+  "UtensilsCrossed", // default
 ] as const;
 
 export type MenuIconName = (typeof MENU_ICONS)[number];

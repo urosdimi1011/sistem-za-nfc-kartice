@@ -117,12 +117,12 @@ export function BarMenu({ categories, layout, search, onAddToCart }: BarMenuProp
           </span>
         )}
         <div className="flex flex-1 flex-col items-center justify-center">
-          <MenuIcon name={icon} className={cn("h-7 w-7", catPreset.text)} />
-          <p className="mt-2 line-clamp-2 text-center text-xs font-medium leading-tight">
+          <MenuIcon name={icon} className={cn("h-8 w-8", catPreset.text)} />
+          <p className="mt-2 line-clamp-2 text-center text-sm font-semibold leading-tight">
             {item.name}
           </p>
         </div>
-        <p className={cn("text-base font-bold tabular-nums", catPreset.text)}>
+        <p className={cn("text-lg font-bold tabular-nums", catPreset.text)}>
           {formatPrice(item.creditPrice)}
         </p>
         <span className="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground group-hover:flex">

@@ -213,6 +213,39 @@ export function RulesForm({ initial }: RulesFormProps) {
             />
           </section>
 
+          {/* Sigurnost / anti-zloupotreba */}
+          <section className="space-y-3 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="text-base font-semibold">Sigurnost</h2>
+            <FormField
+              control={form.control}
+              name="maxDailySpendPerPerson"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Maks. dnevna potrošnja po osobi</FormLabel>
+                  <p className="text-xs text-zinc-500">
+                    Anti-zloupotreba klonirane kartice. Ako neko prekorači ovaj
+                    iznos u jednom danu (uplate + naplate), bar terminal odbija
+                    naplatu. Prazno = bez limita.
+                  </p>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={field.value === null ? "" : field.value}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value === "" ? null : Number(e.target.value),
+                        )
+                      }
+                      placeholder="npr. 2000 (bez limita ako je prazno)"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </section>
+
           {/* Mesečno zatvaranje */}
           <section className="space-y-3 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
             <h2 className="text-base font-semibold">Mesečno zatvaranje</h2>

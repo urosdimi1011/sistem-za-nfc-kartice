@@ -128,3 +128,57 @@
     @apply font-sans;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────
+   NFC scan animacije — sve podešene na "blagi/diskretan" nivo.
+   • nfc-pulse: ikona suptilno "diše" (mala skala promena)
+   • nfc-ping:  jedan talasni ripple, sporiji i tanji
+   • nfc-glow:  blaga aura oko ikone, slaba opacity
+   ─────────────────────────────────────────────────────────────── */
+@keyframes nfc-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.95;
+  }
+}
+
+@keyframes nfc-ping {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.4;
+  }
+  80%,
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+@keyframes nfc-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.35;
+  }
+}
+
+.animate-nfc-pulse {
+  animation: nfc-pulse 3s ease-in-out infinite;
+}
+
+.animate-nfc-ping {
+  animation: nfc-ping 3s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.animate-nfc-glow {
+  animation: nfc-glow 4s ease-in-out infinite;
+}

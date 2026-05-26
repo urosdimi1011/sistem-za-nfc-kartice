@@ -50,6 +50,9 @@ export const tenantSettingsSchema = z.object({
   requireDeductNote: z.boolean(),
   monthlyResetDay: z.number().int().min(1).max(28),
   currency: z.string().min(2).max(5),
+  // Maksimalna dnevna potrošnja po osobi (anti-zloupotreba klonirane kartice).
+  // null = nema limita.
+  maxDailySpendPerPerson: z.number().int().positive().nullable(),
   // Grupa (npr. škola, smer, smena) — per-tenant konfigurabilno
   groupLabel: z.string().trim().min(1).max(30),
   groupLabelPlural: z.string().trim().min(1).max(30),
@@ -67,6 +70,7 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   requireDeductNote: true,
   monthlyResetDay: 1,
   currency: "RSD",
+  maxDailySpendPerPerson: null,
   groupLabel: "Grupa",
   groupLabelPlural: "Grupe",
   requireGroup: false,
