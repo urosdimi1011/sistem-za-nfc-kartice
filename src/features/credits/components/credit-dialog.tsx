@@ -36,9 +36,13 @@ interface PreselectedPerson extends ComboboxPerson {
 }
 
 interface CreditDialogProps {
-  trigger: React.ReactElement;
   mode: CreditMode;
   preselectedPerson?: PreselectedPerson;
+  /** Uncontrolled mode — pruži trigger element */
+  trigger?: React.ReactElement;
+  /** Controlled mode — pruži open + onOpenChange. trigger postaje opcionalan. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000];
@@ -51,8 +55,21 @@ export function CreditDialog({
   trigger,
   mode,
   preselectedPerson,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: CreditDialogProps) {
-  const [open, setOpen] = useState(false);
+  // Controlled vs uncontrolled: ako parent prosledi open + onOpenChange,
+  // koristimo njih. Inače interno state. Time isti komponent radi i sa
+  // trigger pattern-om i sa eksternom kontrolom (npr. PersonDetailsDialog
+  // renderuje child dialog van svog tree-a da izbegne stacking konflikt).
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (isControlled) controlledOnOpenChange?.(next);
+    else setInternalOpen(next);
+  };
+
   const [person, setPerson] = useState<ComboboxPerson | null>(null);
   const [amount, setAmount] = useState<number>(0);
   const [note, setNote] = useState("");
@@ -118,27 +135,35 @@ export function CreditDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
+      {trigger && <DialogTrigger render={trigger} />}
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {isTopUp ? (
-              <>
-                <Plus className="h-5 w-5 text-green-600" />
-                Dodaj kredite
-              </>
-            ) : (
-              <>
-                <Minus className="h-5 w-5 text-red-600" />
-                Skini kredite
-              </>
-            )}
-          </DialogTitle>
-          <DialogDescription>
-            {isTopUp
-              ? "Dodaj kredite na karticu osobe."
-              : "Ručno skidanje kredita (npr. ispravka greške). Napomena je obavezna."}
-          </DialogDescription>
+          <div className="flex items-start gap-3">
+            <div
+              className={cn(
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
+                isTopUp
+                  ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                  : "bg-red-500/15 text-red-600 dark:text-red-400",
+              )}
+            >
+              {isTopUp ? (
+                <Plus className="h-5 w-5" />
+              ) : (
+                <Minus className="h-5 w-5" />
+              )}
+            </div>
+            <div className="flex-1">
+              <DialogTitle className="text-xl">
+                {isTopUp ? "Dodaj kredite" : "Skini kredite"}
+              </DialogTitle>
+              <DialogDescription className="mt-1">
+                {isTopUp
+                  ? "Uplata kredita na nalog osobe."
+                  : "Ručno skidanje (npr. ispravka greške). Napomena obavezna."}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -150,31 +175,40 @@ export function CreditDialog({
           )}
 
           {preselectedPerson && (
-            <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">
-                  {preselectedPerson.lastName} {preselectedPerson.firstName}
-                </span>
-                <Badge
-                  variant={
-                    preselectedPerson.personType === "EMPLOYEE"
-                      ? "default"
-                      : "secondary"
-                  }
-                >
-                  {PersonTypeLabel[preselectedPerson.personType]}
-                </Badge>
-              </div>
-              <div className="mt-1 text-xs text-zinc-500">
-                Trenutno stanje:{" "}
-                <span
-                  className={cn(
-                    "font-medium tabular-nums",
-                    currentBalance < 0 && "text-red-600",
-                  )}
-                >
-                  {formatBalance(currentBalance)} kredita
-                </span>
+            <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-4 dark:border-zinc-800 dark:from-zinc-800/50 dark:to-zinc-900">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">
+                    {preselectedPerson.firstName} {preselectedPerson.lastName}
+                  </p>
+                  <Badge
+                    variant={
+                      preselectedPerson.personType === "EMPLOYEE"
+                        ? "default"
+                        : "secondary"
+                    }
+                    className="mt-1"
+                  >
+                    {PersonTypeLabel[preselectedPerson.personType]}
+                  </Badge>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                    Stanje
+                  </p>
+                  <p
+                    className={cn(
+                      "text-lg font-bold tabular-nums",
+                      currentBalance < 0
+                        ? "text-red-600 dark:text-red-400"
+                        : currentBalance === 0
+                          ? "text-zinc-400"
+                          : "text-zinc-700 dark:text-zinc-300",
+                    )}
+                  >
+                    {formatBalance(currentBalance)}
+                  </p>
+                </div>
               </div>
             </div>
           )}

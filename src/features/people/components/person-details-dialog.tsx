@@ -77,10 +77,27 @@ function Section({ title, right, children }: SectionProps) {
 
 export function PersonDetailsDialog({ trigger, person }: PersonDetailsDialogProps) {
   const [open, setOpen] = useState(false);
+  // Stanja child dijaloga — držimo ih ovde, renderujemo child dijaloge VAN
+  // PersonDetailsDialog-ovog DialogContent-a. Time:
+  //   1. Kad parent zatvorimo, child ne unmount-uje sa parentom
+  //   2. Nikad nema 2 modala vidljiva istovremeno
+  //   3. Posle zatvaranja child-a, parent se NE reopen-uje automatski
+  //      (čista završena akcija; korisnik ponovo klikne osobu ako želi)
+  const [topupOpen, setTopupOpen] = useState(false);
+  const [deductOpen, setDeductOpen] = useState(false);
+  const [registerCardOpen, setRegisterCardOpen] = useState(false);
+
+  // Pomoćnik: zatvori parent pa otvori child (sledeći tick da React commitne oba)
+  const switchToChild = (setter: (b: boolean) => void) => {
+    setOpen(false);
+    setter(true);
+  };
+
   // Isti queryKey kao u PersonCreditHistory — React Query dedup-uje, samo 1 request
   const { isLoading: historyLoading } = usePersonHistory(person.id, open);
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={trigger} />
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -174,22 +191,15 @@ export function PersonDetailsDialog({ trigger, person }: PersonDetailsDialogProp
                   <div className="flex items-center gap-2">
                     <span className="text-zinc-400">Nema</span>
                     {person.isActive && (
-                      <RegisterCardDialog
-                        preselectedPerson={{
-                          id: person.id,
-                          firstName: person.firstName,
-                          lastName: person.lastName,
-                          jmbg: person.jmbg,
-                          personType: person.personType,
-                          activeCard: null,
-                        }}
-                        trigger={
-                          <Button size="sm" variant="outline" className="h-7">
-                            <Plus className="mr-1 h-3 w-3" />
-                            Dodeli
-                          </Button>
-                        }
-                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7"
+                        onClick={() => switchToChild(setRegisterCardOpen)}
+                      >
+                        <Plus className="mr-1 h-3 w-3" />
+                        Dodeli
+                      </Button>
                     )}
                   </div>
                 )}
@@ -210,44 +220,24 @@ export function PersonDetailsDialog({ trigger, person }: PersonDetailsDialogProp
             </div>
             {person.isActive && (
               <div className="flex gap-2 pt-1">
-                <CreditDialog
-                  mode="TOPUP"
-                  preselectedPerson={{
-                    id: person.id,
-                    firstName: person.firstName,
-                    lastName: person.lastName,
-                    jmbg: person.jmbg,
-                    personType: person.personType,
-                    activeCard: null,
-                    currentBalance: person.balance,
-                    hasCard: person.hasCard,
-                  }}
-                  trigger={
-                    <Button size="sm" variant="outline" className="h-8">
-                      <Plus className="mr-1 h-3 w-3" />
-                      Dodaj kredite
-                    </Button>
-                  }
-                />
-                <CreditDialog
-                  mode="DEDUCT"
-                  preselectedPerson={{
-                    id: person.id,
-                    firstName: person.firstName,
-                    lastName: person.lastName,
-                    jmbg: person.jmbg,
-                    personType: person.personType,
-                    activeCard: null,
-                    currentBalance: person.balance,
-                    hasCard: person.hasCard,
-                  }}
-                  trigger={
-                    <Button size="sm" variant="outline" className="h-8">
-                      <Minus className="mr-1 h-3 w-3" />
-                      Skini kredite
-                    </Button>
-                  }
-                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  onClick={() => switchToChild(setTopupOpen)}
+                >
+                  <Plus className="mr-1 h-3 w-3" />
+                  Dodaj kredite
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  onClick={() => switchToChild(setDeductOpen)}
+                >
+                  <Minus className="mr-1 h-3 w-3" />
+                  Skini kredite
+                </Button>
               </div>
             )}
           </Section>
@@ -290,5 +280,51 @@ export function PersonDetailsDialog({ trigger, person }: PersonDetailsDialogProp
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* CHILD DIJALOZI van DialogContent-a — nezavisni od parent state-a.
+        Kad parent zatvorimo, ovi ostaju u tree-u i mogu da se otvore čisto. */}
+    <CreditDialog
+      mode="TOPUP"
+      open={topupOpen}
+      onOpenChange={setTopupOpen}
+      preselectedPerson={{
+        id: person.id,
+        firstName: person.firstName,
+        lastName: person.lastName,
+        jmbg: person.jmbg,
+        personType: person.personType,
+        activeCard: null,
+        currentBalance: person.balance,
+        hasCard: person.hasCard,
+      }}
+    />
+    <CreditDialog
+      mode="DEDUCT"
+      open={deductOpen}
+      onOpenChange={setDeductOpen}
+      preselectedPerson={{
+        id: person.id,
+        firstName: person.firstName,
+        lastName: person.lastName,
+        jmbg: person.jmbg,
+        personType: person.personType,
+        activeCard: null,
+        currentBalance: person.balance,
+        hasCard: person.hasCard,
+      }}
+    />
+    <RegisterCardDialog
+      open={registerCardOpen}
+      onOpenChange={setRegisterCardOpen}
+      preselectedPerson={{
+        id: person.id,
+        firstName: person.firstName,
+        lastName: person.lastName,
+        jmbg: person.jmbg,
+        personType: person.personType,
+        activeCard: null,
+      }}
+    />
+    </>
   );
 }

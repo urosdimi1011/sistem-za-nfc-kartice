@@ -24,15 +24,27 @@ import { PersonCombobox, type ComboboxPerson } from "./person-combobox";
 import { CardScanZone } from "./card-scan-zone";
 
 interface RegisterCardDialogProps {
-  trigger: React.ReactElement;
+  /** Uncontrolled mode — pruži trigger element */
+  trigger?: React.ReactElement;
   preselectedPerson?: ComboboxPerson;
+  /** Controlled mode — pruži open + onOpenChange. trigger postaje opcionalan. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function RegisterCardDialog({
   trigger,
   preselectedPerson,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: RegisterCardDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (isControlled) controlledOnOpenChange?.(next);
+    else setInternalOpen(next);
+  };
   const [person, setPerson] = useState<ComboboxPerson | null>(null);
   const [uid, setUid] = useState("");
   const debouncedUid = useDebouncedValue(uid, 250);
@@ -84,7 +96,7 @@ export function RegisterCardDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
+      {trigger && <DialogTrigger render={trigger} />}
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Registruj karticu</DialogTitle>
