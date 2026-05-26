@@ -40,6 +40,7 @@ export default async function OsobePage({ searchParams }: PageProps) {
   const groupLabel = settings?.groupLabel ?? "Grupa";
   const groupLabelPlural = settings?.groupLabelPlural ?? "Grupe";
   const requireGroup = settings?.requireGroup ?? false;
+  const allowPhotos = settings?.allowPhotos ?? true;
 
   return (
     <div className="space-y-6">
@@ -54,6 +55,7 @@ export default async function OsobePage({ searchParams }: PageProps) {
           groups={groups}
           groupLabel={groupLabel}
           requireGroup={requireGroup}
+          allowPhotos={allowPhotos}
           trigger={
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -73,6 +75,7 @@ export default async function OsobePage({ searchParams }: PageProps) {
         groups={groups}
         groupLabel={groupLabel}
         requireGroup={requireGroup}
+        allowPhotos={allowPhotos}
       />
 
       <PaginationControls

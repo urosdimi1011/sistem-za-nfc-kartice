@@ -53,6 +53,9 @@ export const tenantSettingsSchema = z.object({
   // Maksimalna dnevna potrošnja po osobi (anti-zloupotreba klonirane kartice).
   // null = nema limita.
   maxDailySpendPerPerson: z.number().int().positive().nullable(),
+  // Da li je dozvoljen upload slike za osobu (anti-zloupotreba klonirane kartice).
+  // Neki tenanti ne žele biometrijske podatke — mogu da isključe.
+  allowPhotos: z.boolean(),
   // Grupa (npr. škola, smer, smena) — per-tenant konfigurabilno
   groupLabel: z.string().trim().min(1).max(30),
   groupLabelPlural: z.string().trim().min(1).max(30),
@@ -71,6 +74,7 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   monthlyResetDay: 1,
   currency: "RSD",
   maxDailySpendPerPerson: null,
+  allowPhotos: true,
   groupLabel: "Grupa",
   groupLabelPlural: "Grupe",
   requireGroup: false,

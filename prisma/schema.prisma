@@ -104,6 +104,13 @@ model Person {
   group   Group?  @relation(fields: [groupId], references: [id])
   groupId String?
 
+  // Slika osobe (anti-zloupotreba klonirane kartice — konobar prepoznaje lice).
+  // Skladišti se kao komprimovani WebP (~30-50KB) direktno u bazi. Za 250 osoba
+  // × ~50KB = ~12 MB ukupno — Postgres ovo lako podnosi. Brisanje stare slike
+  // pri update-u je trivijalno (overwrite bajtova).
+  photo     Bytes?
+  photoMime String?
+
   cards            Card[]
   creditBalance    CreditBalance?
   transactions     CreditTransaction[] @relation("PersonTransactions")

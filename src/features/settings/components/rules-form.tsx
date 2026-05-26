@@ -244,6 +244,22 @@ export function RulesForm({ initial }: RulesFormProps) {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="allowPhotos"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Toggle
+                      label="Dozvoli slike osoba"
+                      description="Konobar prepoznaje lice pri naplati — anti-zloupotreba klonirane kartice. Postavlja se per-osoba, opciono. Isključi ako iz pravnih razloga ne želiš biometrijske podatke."
+                      checked={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </section>
 
           {/* Mesečno zatvaranje */}

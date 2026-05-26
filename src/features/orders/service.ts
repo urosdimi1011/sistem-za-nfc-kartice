@@ -33,6 +33,7 @@ export interface BarCardLookup {
     personType: PersonType;
     isActive: boolean;
     balance: number;
+    hasPhoto: boolean;
   };
 }
 
@@ -43,10 +44,15 @@ export async function lookupCardByUid(
   const card = await prisma.card.findFirst({
     where: { tenantId, uid },
     include: {
-      person: { include: { creditBalance: true } },
+      person: {
+        include: { creditBalance: true },
+      },
     },
   });
   if (!card) return null;
+  // hasPhoto se izvodi iz photoMime stringa (~10 bajtova), ne iz photo bajtova.
+  // Bytes ne vučemo u bar terminal — koristi se /api/persons/{id}/photo endpoint.
+  const hasPhoto = !!(card.person.photoMime);
   return {
     cardId: card.id,
     uid: card.uid,
@@ -58,6 +64,7 @@ export async function lookupCardByUid(
       personType: card.person.personType,
       isActive: card.person.isActive,
       balance: card.person.creditBalance?.balance ?? 0,
+      hasPhoto,
     },
   };
 }

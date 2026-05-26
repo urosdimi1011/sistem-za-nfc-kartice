@@ -15,9 +15,16 @@ interface PeopleTableProps {
   groups: { id: string; name: string; shortName: string | null }[];
   groupLabel: string;
   requireGroup?: boolean;
+  allowPhotos?: boolean;
 }
 
-export function PeopleTable({ items, groups, groupLabel, requireGroup }: PeopleTableProps) {
+export function PeopleTable({
+  items,
+  groups,
+  groupLabel,
+  requireGroup,
+  allowPhotos,
+}: PeopleTableProps) {
   if (items.length === 0) {
     return (
       <div className="rounded-md border border-dashed py-16 text-center text-sm text-zinc-500">
@@ -67,6 +74,7 @@ export function PeopleTable({ items, groups, groupLabel, requireGroup }: PeopleT
               groups={groups}
               groupLabel={groupLabel}
               requireGroup={requireGroup}
+              allowPhotos={allowPhotos}
             />
           ))}
         </TableBody>

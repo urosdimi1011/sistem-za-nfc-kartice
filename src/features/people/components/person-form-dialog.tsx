@@ -37,12 +37,19 @@ import {
 import { PERSON_TYPES, PersonTypeLabel, type PersonType } from "@/lib/enums";
 import { personFormSchema, type PersonFormInput } from "../schemas";
 import { createPersonAction, updatePersonAction } from "../actions";
+import {
+  uploadPersonPhotoAction,
+  removePersonPhotoAction,
+} from "../photo-actions";
+import { PhotoUpload } from "./photo-upload";
 
 interface PersonFormDialogProps {
   trigger: React.ReactElement;
   groups: { id: string; name: string; shortName: string | null }[];
   groupLabel: string; // npr "Škola"
   requireGroup?: boolean;
+  /** Da li je slika osobe omogućena za ovaj tenant (settings.allowPhotos) */
+  allowPhotos?: boolean;
   person?: {
     id: string;
     firstName: string;
@@ -54,6 +61,7 @@ interface PersonFormDialogProps {
     dateOfBirth: Date | null;
     note: string | null;
     groupId?: string | null;
+    hasPhoto?: boolean;
   };
 }
 
@@ -68,10 +76,21 @@ export function PersonFormDialog({
   groups,
   groupLabel,
   requireGroup,
+  allowPhotos = true,
   person,
 }: PersonFormDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Stanje slike (pending data url ili "remove").
+  // null = neizmenjeno (postojeća slika osobe ostaje),
+  // "" = remove (postojeća se briše),
+  // "data:..." = nova slika za upload.
+  const [photoChange, setPhotoChange] = useState<string | null>(null);
+
+  const initialPhotoSrc = person?.hasPhoto
+    ? `/api/persons/${person.id}/photo`
+    : null;
 
   const form = useForm<PersonFormInput>({
     resolver: zodResolver(personFormSchema),
@@ -100,10 +119,39 @@ export function PersonFormDialog({
         toast.error(result.error);
         return;
       }
+
+      // ID osobe (postojeći ili sveže kreirane)
+      const personId = isEdit
+        ? person!.id
+        : (result as { ok: true; data: { id: string } }).data.id;
+
+      // Photo update tek nakon kreiranja/update-a osobe — treba nam ID
+      if (photoChange !== null) {
+        if (photoChange === "") {
+          // Eksplicitno uklanjanje
+          const r = await removePersonPhotoAction(personId);
+          if (!r.ok) {
+            toast.error(`Osoba sačuvana, ali slika nije uklonjena: ${r.error}`);
+          }
+        } else {
+          const r = await uploadPersonPhotoAction(personId, photoChange);
+          if (!r.ok) {
+            toast.error(`Osoba sačuvana, ali slika nije snimljena: ${r.error}`);
+          }
+        }
+      }
+
       toast.success(isEdit ? "Osoba ažurirana" : "Osoba dodata");
       setOpen(false);
+      setPhotoChange(null);
       if (!isEdit) form.reset();
     });
+  };
+
+  const handlePhotoChange = (dataUrl: string | null) => {
+    // null iz PhotoUpload-a znači "ukloni" — u našem state-u to je ""
+    // (rezervisano za remove signal). data URL je "data:..." vrednost.
+    setPhotoChange(dataUrl === null ? "" : dataUrl);
   };
 
   return (
@@ -120,6 +168,18 @@ export function PersonFormDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Slika osobe — prva sekcija, opciono, samo ako tenant dozvoljava */}
+            {allowPhotos && (
+              <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  Slika (opciono)
+                </p>
+                <PhotoUpload
+                  initialSrc={initialPhotoSrc}
+                  onChange={handlePhotoChange}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <FormField
                 control={form.control}

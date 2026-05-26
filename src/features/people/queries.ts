@@ -17,6 +17,7 @@ export interface PersonListItem {
   isActive: boolean;
   balance: number;
   hasCard: boolean;
+  hasPhoto: boolean;
   groupId: string | null;
   groupName: string | null;
   groupShortName: string | null;
@@ -84,6 +85,8 @@ export async function listPeople(query: PeopleQuery): Promise<PeopleListResult> 
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        // photoMime samo da znamo postoji li slika — bajtove ne vučemo u listu
+        photoMime: true,
         creditBalance: { select: { balance: true } },
         cards: {
           where: { isActive: true },
@@ -109,6 +112,7 @@ export async function listPeople(query: PeopleQuery): Promise<PeopleListResult> 
       isActive: r.isActive,
       balance: r.creditBalance?.balance ?? 0,
       hasCard: r.cards.length > 0,
+      hasPhoto: !!r.photoMime,
       groupId: r.group?.id ?? null,
       groupName: r.group?.name ?? null,
       groupShortName: r.group?.shortName ?? null,

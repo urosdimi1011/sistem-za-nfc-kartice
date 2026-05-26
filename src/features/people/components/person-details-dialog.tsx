@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { sr } from "date-fns/locale";
-import { CreditCard, Loader2, Minus, Plus, User } from "lucide-react";
+import { CreditCard, Loader2, Minus, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { usePersonHistory } from "@/features/credits/hooks/use-person-history";
 import { personCreditsHref } from "@/features/credits/lib/links";
 
 import type { PersonListItem } from "../queries";
+import { PersonAvatar } from "./person-avatar";
 
 interface PersonDetailsDialogProps {
   trigger: React.ReactElement;
@@ -85,9 +86,14 @@ export function PersonDetailsDialog({ trigger, person }: PersonDetailsDialogProp
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-2">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-6 w-6 text-primary" />
-            </div>
+            <PersonAvatar
+              personId={person.id}
+              firstName={person.firstName}
+              lastName={person.lastName}
+              hasPhoto={person.hasPhoto}
+              size={64}
+              cacheKey={person.updatedAt.getTime()}
+            />
             <div className="flex-1 min-w-0">
               <DialogTitle className="text-xl">
                 {person.firstName} {person.lastName}

@@ -6,6 +6,7 @@ import {
   Loader2,
   Minus,
   Plus,
+  RotateCcw,
   ShoppingCart,
   X,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PersonTypeLabel } from "@/lib/enums";
+import { PersonAvatar } from "@/features/people/components/person-avatar";
 
 import type { BarCardLookup } from "../service";
 
@@ -38,11 +40,6 @@ interface CustomerPanelProps {
 
 function formatBalance(n: number) {
   return new Intl.NumberFormat("sr-RS").format(n);
-}
-
-/** Inicijali iz imena za avatar krug. */
-function initials(firstName: string, lastName: string) {
-  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
 }
 
 export function CustomerPanel({
@@ -83,36 +80,47 @@ export function CustomerPanel({
     <div className="flex h-full flex-col bg-zinc-50 dark:bg-zinc-950">
       {/* ─── HERO: VELIKA KARTICA OSOBE ─── */}
       <div className="border-b border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-1 items-start gap-3 min-w-0">
-            {/* Avatar krug sa inicijalima */}
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/15 text-lg font-bold text-primary">
-              {initials(person.firstName, person.lastName)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p
-                className="truncate text-2xl font-bold leading-tight"
-                title={`${person.firstName} ${person.lastName}`}
-              >
-                {person.firstName} {person.lastName}
-              </p>
-              <Badge
-                variant={person.personType === "EMPLOYEE" ? "default" : "secondary"}
-                className="mt-1"
-              >
-                {PersonTypeLabel[person.personType]}
-              </Badge>
-            </div>
-          </div>
+        {/* Mini action row — "Sledeća kartica" izvučena gore, da ne uzima prostor
+            od imena. Tako ime + prezime ima pun horizontalni prostor i ako je dugo
+            prelama se u dva reda umesto truncate-a. */}
+        <div className="mb-4 flex justify-end">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onCancel}
-            title="Sledeća kartica (Esc)"
-            className="shrink-0"
+            title="Esc"
+            className="gap-1.5"
           >
-            <X className="h-5 w-5" />
+            <RotateCcw className="h-3.5 w-3.5" />
+            Sledeća kartica
           </Button>
+        </div>
+
+        <div className="flex items-start gap-3">
+          {/* Avatar — slika ako postoji, inače inicijali. Velik prominentno
+              (72px) — konobar baca pogled, prepoznaje lice → anti-zloupotreba
+              klonirane kartice. */}
+          <PersonAvatar
+            personId={person.id}
+            firstName={person.firstName}
+            lastName={person.lastName}
+            hasPhoto={person.hasPhoto}
+            size={72}
+            className="ring-2 ring-primary/20"
+          />
+          <div className="min-w-0 flex-1">
+            {/* break-words + leading-tight — duga imena se prelamaju u 2 reda
+                umesto da se odsecaju, ali ostaju kompaktna. */}
+            <p className="break-words text-2xl font-bold leading-tight">
+              {person.firstName} {person.lastName}
+            </p>
+            <Badge
+              variant={person.personType === "EMPLOYEE" ? "default" : "secondary"}
+              className="mt-1.5"
+            >
+              {PersonTypeLabel[person.personType]}
+            </Badge>
+          </div>
         </div>
 
         {/* Stanje — veliki, vidno */}

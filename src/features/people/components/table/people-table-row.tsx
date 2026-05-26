@@ -11,12 +11,14 @@ import type { PersonListItem } from "../../queries";
 import { PersonFormDialog } from "../person-form-dialog";
 import { ToggleActiveDialog } from "../toggle-active-dialog";
 import { PersonDetailsDialog } from "../person-details-dialog";
+import { PersonAvatar } from "../person-avatar";
 
 interface PeopleTableRowProps {
   person: PersonListItem;
   groups: { id: string; name: string; shortName: string | null }[];
   groupLabel: string;
   requireGroup?: boolean;
+  allowPhotos?: boolean;
 }
 
 function formatBalance(n: number) {
@@ -28,17 +30,30 @@ export function PeopleTableRow({
   groups,
   groupLabel,
   requireGroup,
+  allowPhotos,
 }: PeopleTableRowProps) {
   return (
     <TableRow className={!p.isActive ? "opacity-60" : ""}>
       <TableCell className="font-medium">
-        <div className="flex items-center gap-1.5">
-          {p.lastName} {p.firstName}
-          {p.note && (
-            <span title="Ima napomenu">
-              <StickyNote className="h-3.5 w-3.5 text-amber-500" />
+        <div className="flex items-center gap-2.5">
+          <PersonAvatar
+            personId={p.id}
+            firstName={p.firstName}
+            lastName={p.lastName}
+            hasPhoto={p.hasPhoto}
+            size={32}
+            cacheKey={p.updatedAt.getTime()}
+          />
+          <div className="flex items-center gap-1.5">
+            <span>
+              {p.lastName} {p.firstName}
             </span>
-          )}
+            {p.note && (
+              <span title="Ima napomenu">
+                <StickyNote className="h-3.5 w-3.5 text-amber-500" />
+              </span>
+            )}
+          </div>
         </div>
       </TableCell>
       <TableCell>
@@ -107,6 +122,7 @@ export function PeopleTableRow({
             groups={groups}
             groupLabel={groupLabel}
             requireGroup={requireGroup}
+            allowPhotos={allowPhotos}
             person={{
               id: p.id,
               firstName: p.firstName,
@@ -118,6 +134,7 @@ export function PeopleTableRow({
               dateOfBirth: p.dateOfBirth,
               note: p.note,
               groupId: p.groupId,
+              hasPhoto: p.hasPhoto,
             }}
             trigger={
               <Button variant="ghost" size="sm" title="Izmeni">
