@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,8 @@ interface RegisterCardDialogProps {
   /** Controlled mode — pruži open + onOpenChange. trigger postaje opcionalan. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Ako je prosleđen, dijalog prikazuje "Nazad" dugme u header-u. */
+  onBack?: () => void;
 }
 
 export function RegisterCardDialog({
@@ -37,6 +39,7 @@ export function RegisterCardDialog({
   preselectedPerson,
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
+  onBack,
 }: RegisterCardDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
@@ -98,7 +101,18 @@ export function RegisterCardDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger && <DialogTrigger render={trigger} />}
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            title="Nazad na prethodni ekran"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Nazad
+          </button>
+        )}
+        <DialogHeader className={onBack ? "pt-6" : undefined}>
           <DialogTitle>Registruj karticu</DialogTitle>
           <DialogDescription>
             Izaberi osobu pa prisloni karticu na čitač.

@@ -44,7 +44,7 @@ export default async function OsobePage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Osobe</h1>
           <p className="mt-1 text-sm text-zinc-500">
@@ -57,7 +57,7 @@ export default async function OsobePage({ searchParams }: PageProps) {
           requireGroup={requireGroup}
           allowPhotos={allowPhotos}
           trigger={
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Nova osoba
             </Button>
@@ -70,13 +70,17 @@ export default async function OsobePage({ searchParams }: PageProps) {
         groupLabelPlural={groupLabelPlural}
       />
 
-      <PeopleTable
-        items={data.items}
-        groups={groups}
-        groupLabel={groupLabel}
-        requireGroup={requireGroup}
-        allowPhotos={allowPhotos}
-      />
+      {/* overflow-x-auto — tabela klizi horizontalno na uskim ekranima
+          umesto da se prelama. Korisnik može da swipe-uje. */}
+      <div className="-mx-4 overflow-x-auto sm:mx-0">
+        <PeopleTable
+          items={data.items}
+          groups={groups}
+          groupLabel={groupLabel}
+          requireGroup={requireGroup}
+          allowPhotos={allowPhotos}
+        />
+      </div>
 
       <PaginationControls
         page={data.page}

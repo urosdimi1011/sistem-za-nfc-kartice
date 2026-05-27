@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowRight, Loader2, Minus, Plus } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  Minus,
+  Plus,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -43,6 +50,12 @@ interface CreditDialogProps {
   /** Controlled mode — pruži open + onOpenChange. trigger postaje opcionalan. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Ako je prosleđen, prikazuje se "Nazad" dugme u header-u koje vraća
+   * korisnika na prethodni kontekst (npr. PersonDetailsDialog). Tada se
+   * dijalog ne ponaša kao završna akcija već kao podstanica.
+   */
+  onBack?: () => void;
 }
 
 const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000];
@@ -57,6 +70,7 @@ export function CreditDialog({
   preselectedPerson,
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
+  onBack,
 }: CreditDialogProps) {
   // Controlled vs uncontrolled: ako parent prosledi open + onOpenChange,
   // koristimo njih. Inače interno state. Time isti komponent radi i sa
@@ -137,7 +151,18 @@ export function CreditDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger && <DialogTrigger render={trigger} />}
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            title="Nazad na prethodni ekran"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Nazad
+          </button>
+        )}
+        <DialogHeader className={onBack ? "pt-6" : undefined}>
           <div className="flex items-start gap-3">
             <div
               className={cn(

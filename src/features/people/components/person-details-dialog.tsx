@@ -93,6 +93,12 @@ export function PersonDetailsDialog({ trigger, person }: PersonDetailsDialogProp
     setter(true);
   };
 
+  // Vrati se iz child-a u parent (Details ostaje "zapamćen" za tu osobu)
+  const backToParent = (setter: (b: boolean) => void) => {
+    setter(false);
+    setOpen(true);
+  };
+
   // Isti queryKey kao u PersonCreditHistory — React Query dedup-uje, samo 1 request
   const { isLoading: historyLoading } = usePersonHistory(person.id, open);
 
@@ -287,6 +293,7 @@ export function PersonDetailsDialog({ trigger, person }: PersonDetailsDialogProp
       mode="TOPUP"
       open={topupOpen}
       onOpenChange={setTopupOpen}
+      onBack={() => backToParent(setTopupOpen)}
       preselectedPerson={{
         id: person.id,
         firstName: person.firstName,
@@ -302,6 +309,7 @@ export function PersonDetailsDialog({ trigger, person }: PersonDetailsDialogProp
       mode="DEDUCT"
       open={deductOpen}
       onOpenChange={setDeductOpen}
+      onBack={() => backToParent(setDeductOpen)}
       preselectedPerson={{
         id: person.id,
         firstName: person.firstName,
@@ -316,6 +324,7 @@ export function PersonDetailsDialog({ trigger, person }: PersonDetailsDialogProp
     <RegisterCardDialog
       open={registerCardOpen}
       onOpenChange={setRegisterCardOpen}
+      onBack={() => backToParent(setRegisterCardOpen)}
       preselectedPerson={{
         id: person.id,
         firstName: person.firstName,
