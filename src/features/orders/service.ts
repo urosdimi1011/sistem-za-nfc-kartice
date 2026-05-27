@@ -238,13 +238,9 @@ export async function createOrder(params: CreateOrderParams) {
 
       const newStock = menu.stock - cartItem.quantity;
 
-      // Auto-hide kad stigne nula
-      if (newStock === 0) {
-        await tx.menuItem.update({
-          where: { id: menu.id },
-          data: { isAvailable: false },
-        });
-      }
+      // Ne diramo isAvailable — UI (bar terminal + karta pića) izvodi
+      // status "Nema na stanju" iz trackStock + stock vrednosti. isAvailable
+      // je čisto admin-ova ručna kontrola vidljivosti.
 
       await tx.stockMovement.create({
         data: {

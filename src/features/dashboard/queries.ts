@@ -239,3 +239,142 @@ export async function getDashboardData(): Promise<DashboardData> {
     recent,
   };
 }
+
+// ─── PROŠIRENI PROMET PO PERIODU ────────────────────────────
+
+export type RevenuePeriod = "30days" | "monthly" | "yearly";
+
+export interface RevenuePeriodRow {
+  /** Sortabilan ključ (YYYY-MM-DD / YYYY-MM / YYYY) */
+  key: string;
+  /** Lep label za prikaz na X-axis */
+  label: string;
+  revenue: number;
+  orderCount: number;
+}
+
+export interface RevenuePeriodSummary {
+  period: RevenuePeriod;
+  rows: RevenuePeriodRow[];
+  total: number;
+  average: number;
+  peak: RevenuePeriodRow | null;
+  totalOrders: number;
+}
+
+/**
+ * Vraća promet po izabranom periodu — koristi se u Detaljnije modalu na dashboardu.
+ * • 30days  → poslednjih 30 dana, group by dan
+ * • monthly → poslednjih 12 meseci, group by mesec
+ * • yearly  → poslednjih 5 godina, group by godinu
+ */
+export async function getRevenueByPeriod(
+  period: RevenuePeriod,
+): Promise<RevenuePeriodSummary> {
+  const tenantId = await requireTenantId();
+  const now = new Date();
+
+  let startDate: Date;
+  let bucketKey: (d: Date) => string;
+  let bucketLabel: (key: string) => string;
+  let allBuckets: string[];
+
+  if (period === "30days") {
+    startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - 29);
+    startDate.setHours(0, 0, 0, 0);
+    bucketKey = (d) => format(d, "yyyy-MM-dd");
+    bucketLabel = (key) => {
+      const d = new Date(key);
+      return format(d, "dd.MM.");
+    };
+    allBuckets = Array.from({ length: 30 }).map((_, i) => {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      return bucketKey(d);
+    });
+  } else if (period === "monthly") {
+    startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    startDate.setHours(0, 0, 0, 0);
+    bucketKey = (d) => format(d, "yyyy-MM");
+    const monthLabels = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Maj",
+      "Jun",
+      "Jul",
+      "Avg",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Dec",
+    ];
+    bucketLabel = (key) => {
+      const [y, m] = key.split("-");
+      return `${monthLabels[Number(m) - 1]} ${y.slice(2)}`;
+    };
+    allBuckets = Array.from({ length: 12 }).map((_, i) => {
+      const d = new Date(startDate);
+      d.setMonth(d.getMonth() + i);
+      return bucketKey(d);
+    });
+  } else {
+    // yearly — poslednjih 5 godina
+    startDate = new Date(now.getFullYear() - 4, 0, 1);
+    bucketKey = (d) => format(d, "yyyy");
+    bucketLabel = (key) => key;
+    allBuckets = Array.from({ length: 5 }).map((_, i) =>
+      String(now.getFullYear() - 4 + i),
+    );
+  }
+
+  // Prisma ne podržava group-by-truncated-date na svim DB-ovima, pa povučemo
+  // sve transakcije i agregiramo u JS-u. Za 30/12/5 buckets to je negde
+  // par hiljada redova max — sasvim OK za in-memory rollup.
+  const txs = await prisma.creditTransaction.findMany({
+    where: {
+      tenantId,
+      type: "ORDER",
+      createdAt: { gte: startDate },
+    },
+    select: { amount: true, createdAt: true, orderId: true },
+  });
+
+  const revenueMap = new Map<string, number>();
+  const orderSet = new Map<string, Set<string>>();
+  for (const t of txs) {
+    const key = bucketKey(t.createdAt);
+    revenueMap.set(key, (revenueMap.get(key) ?? 0) + Math.abs(t.amount));
+    if (t.orderId) {
+      if (!orderSet.has(key)) orderSet.set(key, new Set());
+      orderSet.get(key)!.add(t.orderId);
+    }
+  }
+
+  const rows: RevenuePeriodRow[] = allBuckets.map((key) => ({
+    key,
+    label: bucketLabel(key),
+    revenue: revenueMap.get(key) ?? 0,
+    orderCount: orderSet.get(key)?.size ?? 0,
+  }));
+
+  const total = rows.reduce((s, r) => s + r.revenue, 0);
+  const totalOrders = rows.reduce((s, r) => s + r.orderCount, 0);
+  const nonZero = rows.filter((r) => r.revenue > 0);
+  const average = nonZero.length > 0 ? total / nonZero.length : 0;
+  const peak = rows.reduce<RevenuePeriodRow | null>(
+    (max, r) => (r.revenue > (max?.revenue ?? 0) ? r : max),
+    null,
+  );
+
+  return {
+    period,
+    rows,
+    total,
+    average,
+    peak: peak && peak.revenue > 0 ? peak : null,
+    totalOrders,
+  };
+}

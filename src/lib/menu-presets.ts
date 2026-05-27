@@ -5,17 +5,21 @@
 // Imena su tačni Pascal-case nazivi komponenti (lucide-react export-uje tako).
 export const MENU_ICONS = [
   // Topli napici
-  "Coffee", // kafa, čaj, topla čokolada — šolja sa parom
-  "Soup", // ako želiš da naglasiš toplo (paru) za čaj
+  "Coffee", // kafa, šolja sa parom
+  "Leaf", // čaj (asocijacija na bilje)
+  "Soup", // naglasak na toplo (para)
 
   // Hladni napici i flašice
   "CupSoda", // čaša sa slamkom (sok, kola)
   "GlassWater", // čaša vode
   "Milk", // kartonska mlečna ambalaža
-  "BottleWine", // flašica — koristi i za druge boce
+  "BottleWine", // flašica vina
+  "FlaskRound", // generička okrugla flašica
   "Wine", // čaša vina
   "Beer", // pivska čaša
   "Martini", // koktel
+  "Grape", // sok od grožđa, vino
+  "Wheat", // pivo (slad)
 
   // Hrana — sendviči, brza
   "Pizza",
@@ -39,11 +43,17 @@ export const MENU_ICONS = [
   "Cookie",
   "Cake",
   "Donut",
+  "Candy",
   "IceCream",
+
+  // Snack
+  "Popcorn",
+  "Nut",
 
   // Voće / dodatak
   "Apple",
   "Banana",
+  "Cherry",
   "Carrot",
 
   // Generički

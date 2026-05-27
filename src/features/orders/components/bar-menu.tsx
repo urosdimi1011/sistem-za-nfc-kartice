@@ -20,11 +20,12 @@ export interface BarMenuCategory {
     description: string | null;
     icon: string | null;
     creditPrice: number;
-    // Stock info — bar terminal pokazuje badge "Skoro nestalo" za <= threshold.
-    // Stavke sa stock=0 dolaze već filtrirane (isAvailable=false → ne ulaze u listAvailableMenu).
+    // Out-of-stock stavke se prikazuju sa "NEMA NA STANJU" overlay-em, ne kriju.
+    // Konobar vidi šta postoji u meniju da bi obavestio mušteriju.
     trackStock: boolean;
     stock: number;
     lowStockThreshold: number;
+    isAvailable: boolean;
   }>;
 }
 
@@ -95,18 +96,31 @@ export function BarMenu({ categories, layout, search, onAddToCart }: BarMenuProp
   ) => {
     const catPreset = getColorPreset(cat.color);
     const icon = item.icon ?? cat.icon;
-    const isLow = item.trackStock && item.stock <= item.lowStockThreshold;
+    const outOfStock = item.trackStock && item.stock <= 0;
+    const isLow =
+      item.trackStock && !outOfStock && item.stock <= item.lowStockThreshold;
+
     return (
       <button
         key={item.id}
         type="button"
-        onClick={() => onAddToCart(item.id)}
+        onClick={() => !outOfStock && onAddToCart(item.id)}
+        disabled={outOfStock}
         className={cn(
-          "group relative flex aspect-square flex-col items-center justify-between rounded-xl border-2 p-3 transition-all hover:scale-105 active:scale-95",
-          catPreset.border,
-          catPreset.bg,
+          "group relative flex aspect-square flex-col items-center justify-between overflow-hidden rounded-xl border-2 p-3 transition-all",
+          outOfStock
+            ? "cursor-not-allowed border-red-500/40 bg-red-50/60 dark:bg-red-950/20"
+            : cn(
+                catPreset.border,
+                catPreset.bg,
+                "hover:scale-105 active:scale-95",
+              ),
         )}
-        title={item.description ?? item.name}
+        title={
+          outOfStock
+            ? `${item.name} — nema na stanju`
+            : (item.description ?? item.name)
+        }
       >
         {isLow && (
           <span
@@ -116,18 +130,40 @@ export function BarMenu({ categories, layout, search, onAddToCart }: BarMenuProp
             {item.stock} kom
           </span>
         )}
-        <div className="flex flex-1 flex-col items-center justify-center">
+        <div
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center",
+            outOfStock && "opacity-30 grayscale",
+          )}
+        >
           <MenuIcon name={icon} className={cn("h-8 w-8", catPreset.text)} />
           <p className="mt-2 line-clamp-2 text-center text-sm font-semibold leading-tight">
             {item.name}
           </p>
         </div>
-        <p className={cn("text-lg font-bold tabular-nums", catPreset.text)}>
+        <p
+          className={cn(
+            "text-lg font-bold tabular-nums",
+            outOfStock ? "text-zinc-400 line-through" : catPreset.text,
+          )}
+        >
           {formatPrice(item.creditPrice)}
         </p>
-        <span className="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground group-hover:flex">
-          <Plus className="h-3.5 w-3.5" />
-        </span>
+
+        {/* OUT OF STOCK overlay — dijagonalna traka preko cele pločice */}
+        {outOfStock && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="w-[140%] rotate-[-12deg] bg-red-600 py-1 text-center text-xs font-extrabold uppercase tracking-wider text-white shadow-lg">
+              Nema na stanju
+            </div>
+          </div>
+        )}
+
+        {!outOfStock && (
+          <span className="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground group-hover:flex">
+            <Plus className="h-3.5 w-3.5" />
+          </span>
+        )}
       </button>
     );
   };
@@ -138,29 +174,52 @@ export function BarMenu({ categories, layout, search, onAddToCart }: BarMenuProp
   ) => {
     const catPreset = getColorPreset(cat.color);
     const icon = item.icon ?? cat.icon;
+    const outOfStock = item.trackStock && item.stock <= 0;
+    const isLow =
+      item.trackStock && !outOfStock && item.stock <= item.lowStockThreshold;
+
     return (
       <button
         key={item.id}
         type="button"
-        onClick={() => onAddToCart(item.id)}
+        onClick={() => !outOfStock && onAddToCart(item.id)}
+        disabled={outOfStock}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-lg border-2 p-3 text-left transition-all hover:scale-[1.01] active:scale-[0.99]",
-          catPreset.border,
-          catPreset.bg,
+          "group flex w-full items-center gap-3 rounded-lg border-2 p-3 text-left transition-all",
+          outOfStock
+            ? "cursor-not-allowed border-red-500/40 bg-red-50/60 dark:bg-red-950/20"
+            : cn(
+                catPreset.border,
+                catPreset.bg,
+                "hover:scale-[1.01] active:scale-[0.99]",
+              ),
         )}
       >
         <div
           className={cn(
             "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
             catPreset.badge,
+            outOfStock && "opacity-30 grayscale",
           )}
         >
           <MenuIcon name={icon} className="h-6 w-6 text-white" />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className={cn("flex-1 min-w-0", outOfStock && "opacity-50")}>
           <div className="flex items-center gap-2">
-            <p className="font-medium">{item.name}</p>
-            {item.trackStock && item.stock <= item.lowStockThreshold && (
+            <p
+              className={cn(
+                "font-medium",
+                outOfStock && "line-through",
+              )}
+            >
+              {item.name}
+            </p>
+            {outOfStock && (
+              <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                Nema na stanju
+              </span>
+            )}
+            {isLow && (
               <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
                 {item.stock} kom
               </span>
@@ -176,12 +235,19 @@ export function BarMenu({ categories, layout, search, onAddToCart }: BarMenuProp
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className={cn("text-lg font-bold tabular-nums", catPreset.text)}>
+          <span
+            className={cn(
+              "text-lg font-bold tabular-nums",
+              outOfStock ? "text-zinc-400 line-through" : catPreset.text,
+            )}
+          >
             {formatPrice(item.creditPrice)}
           </span>
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 transition-opacity group-hover:opacity-100">
-            <Plus className="h-4 w-4" />
-          </span>
+          {!outOfStock && (
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 transition-opacity group-hover:opacity-100">
+              <Plus className="h-4 w-4" />
+            </span>
+          )}
         </div>
       </button>
     );

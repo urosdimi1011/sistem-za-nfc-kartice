@@ -69,9 +69,19 @@ export async function listAvailableMenu() {
       icon: true,
       color: true,
       items: {
-        // isAvailable=false znači stavka je sakrivena (ili ručno, ili auto kad stock=0)
-        // archivedAt != null znači stavka je soft-deleted (admin je "obrisao")
-        where: { isAvailable: true, archivedAt: null },
+        // Vraćamo:
+        //   • Sve stavke koje admin nije obrisao (archivedAt = null)
+        //   • Koje admin nije ručno sakrio (isAvailable=true)
+        //     ILI su praćene a stock = 0 (NEMA NA STANJU prikaz)
+        // Out-of-stock stavke prikazujemo sa overlay-em, ne sakrivamo —
+        // konobar treba da zna šta sve postoji u meniju.
+        where: {
+          archivedAt: null,
+          OR: [
+            { isAvailable: true },
+            { trackStock: true, stock: { lte: 0 } },
+          ],
+        },
         orderBy: { displayOrder: "asc" },
         select: {
           id: true,
@@ -79,10 +89,11 @@ export async function listAvailableMenu() {
           description: true,
           icon: true,
           creditPrice: true,
-          // Bar terminal pokazuje "Skoro nestalo" badge ako je stock <= threshold
+          // Bar terminal koristi za status: nema na stanju / skoro nestalo
           trackStock: true,
           stock: true,
           lowStockThreshold: true,
+          isAvailable: true,
         },
       },
     },
