@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { z } from "zod";
+import { FileBarChart } from "lucide-react";
 import { PERSON_TYPES, PersonType } from "@/lib/enums";
+import { PageHeader } from "@/components/ui/page-header";
 import { PeriodPicker } from "@/features/reports/components/period-picker";
 import { ReportsFilters } from "@/features/reports/components/reports-filters";
 import { MonthlyReportSection } from "@/features/reports/components/monthly-report-section";
@@ -107,13 +109,11 @@ export default async function IzvestajiPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Izveštaji</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Mesečna potrošnja po osobama, individualni PDF izveštaji i zatvaranje
-          meseca
-        </p>
-      </div>
+      <PageHeader
+        title="Izveštaji"
+        description="Mesečna potrošnja po osobama, individualni PDF izveštaji i zatvaranje meseca"
+        icon={<FileBarChart className="h-5 w-5" />}
+      />
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <PeriodPicker year={year} month={month} personType={personType} />

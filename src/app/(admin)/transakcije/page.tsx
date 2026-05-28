@@ -1,6 +1,7 @@
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Receipt } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { PersonFilterBadge } from "@/components/ui/person-filter-badge";
 import { transactionsQuerySchema } from "@/features/credits/schemas";
@@ -37,34 +38,33 @@ export default async function KreditiPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Krediti</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Sve transakcije: uplate, ručno skidanje, narudžbine
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <CreditDialog
-            mode="DEDUCT"
-            trigger={
-              <Button variant="outline">
-                <Minus className="mr-2 h-4 w-4" />
-                Skini kredite
-              </Button>
-            }
-          />
-          <CreditDialog
-            mode="TOPUP"
-            trigger={
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Dodaj kredite
-              </Button>
-            }
-          />
-        </div>
-      </div>
+      <PageHeader
+        title="Transakcije"
+        description="Sve transakcije: uplate, ručno skidanje, narudžbine"
+        icon={<Receipt className="h-5 w-5" />}
+        actions={
+          <>
+            <CreditDialog
+              mode="DEDUCT"
+              trigger={
+                <Button variant="outline" className="flex-1 sm:flex-none">
+                  <Minus className="mr-2 h-4 w-4" />
+                  Skini kredite
+                </Button>
+              }
+            />
+            <CreditDialog
+              mode="TOPUP"
+              trigger={
+                <Button className="flex-1 sm:flex-none">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Dodaj kredite
+                </Button>
+              }
+            />
+          </>
+        }
+      />
 
       {filterPerson && <PersonFilterBadge person={filterPerson} />}
 

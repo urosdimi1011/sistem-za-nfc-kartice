@@ -1,6 +1,7 @@
-import { Plus } from "lucide-react";
+import { CreditCard, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { PersonFilterBadge } from "@/components/ui/person-filter-badge";
 import { cardsQuerySchema } from "@/features/cards/schemas";
@@ -40,22 +41,21 @@ export default async function KarticePage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Kartice</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Registrovane kartice učenika i zaposlenih
-          </p>
-        </div>
-        <RegisterCardDialog
-          trigger={
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Registruj karticu
-            </Button>
-          }
-        />
-      </div>
+      <PageHeader
+        title="Kartice"
+        description="Registrovane kartice učenika i zaposlenih"
+        icon={<CreditCard className="h-5 w-5" />}
+        actions={
+          <RegisterCardDialog
+            trigger={
+              <Button className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Registruj karticu
+              </Button>
+            }
+          />
+        }
+      />
 
       {filterPerson && <PersonFilterBadge person={filterPerson} />}
 

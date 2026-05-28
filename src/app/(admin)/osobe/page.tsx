@@ -1,6 +1,7 @@
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { peopleQuerySchema } from "@/features/people/schemas";
 import { listPeople } from "@/features/people/queries";
@@ -44,26 +45,25 @@ export default async function OsobePage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Osobe</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Učenici i zaposleni akademije
-          </p>
-        </div>
-        <PersonFormDialog
-          groups={groups}
-          groupLabel={groupLabel}
-          requireGroup={requireGroup}
-          allowPhotos={allowPhotos}
-          trigger={
-            <Button className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              Nova osoba
-            </Button>
-          }
-        />
-      </div>
+      <PageHeader
+        title="Osobe"
+        description="Učenici i zaposleni akademije"
+        icon={<Users className="h-5 w-5" />}
+        actions={
+          <PersonFormDialog
+            groups={groups}
+            groupLabel={groupLabel}
+            requireGroup={requireGroup}
+            allowPhotos={allowPhotos}
+            trigger={
+              <Button className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova osoba
+              </Button>
+            }
+          />
+        }
+      />
 
       <PeopleFilters
         groups={groups}

@@ -1,5 +1,6 @@
 import {
   CreditCard,
+  LayoutDashboard,
   Receipt,
   ShoppingCart,
   TrendingUp,
@@ -7,6 +8,7 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { PageHeader } from "@/components/ui/page-header";
 import { getDashboardData } from "@/features/dashboard/queries";
 import { getLowStockSummary } from "@/features/inventory/queries";
 import { KpiCard } from "@/features/dashboard/components/kpi-card";
@@ -32,12 +34,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Pregled prometa i stanja u sistemu
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Pregled prometa i stanja u sistemu"
+        icon={<LayoutDashboard className="h-5 w-5" />}
+      />
 
       {/* KPI red */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

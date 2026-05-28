@@ -1,7 +1,8 @@
-import { Plus } from "lucide-react";
+import { Plus, UserCog } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { auth } from "@/auth";
 import { accountsQuerySchema } from "@/features/accounts/schemas";
@@ -36,22 +37,21 @@ export default async function NaloziPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Korisnički nalozi</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Admin, menadžer i konobari koji imaju pristup sistemu
-          </p>
-        </div>
-        <CreateAccountDialog
-          trigger={
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Novi nalog
-            </Button>
-          }
-        />
-      </div>
+      <PageHeader
+        title="Korisnički nalozi"
+        description="Admin, menadžer i konobari koji imaju pristup sistemu"
+        icon={<UserCog className="h-5 w-5" />}
+        actions={
+          <CreateAccountDialog
+            trigger={
+              <Button className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Novi nalog
+              </Button>
+            }
+          />
+        }
+      />
 
       <AccountsFilters />
 

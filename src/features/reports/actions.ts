@@ -4,10 +4,37 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { closeMonthSchema } from "./schemas";
 import { closeMonthForTenant, ReportsServiceError } from "./service";
+import { sendPersonReportEmail, ReportEmailError } from "./email";
 
 export type ActionResult<T = void> =
   | { ok: true; data?: T }
   | { ok: false; error: string };
+
+/**
+ * Šalje PDF mesečni izveštaj osobe na njen email.
+ * Samo ADMIN/MANAGER. Tenant scope se proverava unutar getPersonReport-a.
+ */
+export async function sendReportEmailAction(
+  personId: string,
+  year: number,
+  month: number,
+): Promise<ActionResult<{ sentTo: string }>> {
+  const session = await auth();
+  if (!session) return { ok: false, error: "Niste prijavljeni" };
+  if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") {
+    return { ok: false, error: "Nemate pristup" };
+  }
+  try {
+    const { sentTo } = await sendPersonReportEmail(personId, year, month);
+    return { ok: true, data: { sentTo } };
+  } catch (e) {
+    if (e instanceof ReportEmailError) {
+      return { ok: false, error: e.message };
+    }
+    console.error(e);
+    return { ok: false, error: "Greška pri slanju mejla" };
+  }
+}
 
 export async function closeMonthAction(
   raw: unknown,

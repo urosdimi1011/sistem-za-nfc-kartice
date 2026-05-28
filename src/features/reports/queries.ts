@@ -15,6 +15,7 @@ export interface MonthlyPersonRow {
   monthTopups: number;
   orderCount: number;
   hasEmail: boolean;
+  email: string | null;
   groupId: string | null;
   groupName: string | null;
   groupShortName: string | null;
@@ -162,6 +163,7 @@ export async function getMonthlyReport(
       monthTopups: topupAgg.sum,
       orderCount: orderAgg.count,
       hasEmail: !!p.email,
+      email: p.email ?? null,
       groupId: p.group?.id ?? null,
       groupName: p.group?.name ?? null,
       groupShortName: p.group?.shortName ?? null,

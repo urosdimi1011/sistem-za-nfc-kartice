@@ -1,3 +1,6 @@
+import { Package } from "lucide-react";
+
+import { PageHeader } from "@/components/ui/page-header";
 import { inventoryQuerySchema } from "@/features/inventory/schemas";
 import { listInventory } from "@/features/inventory/queries";
 import { InventoryTable } from "@/features/inventory/components/inventory-table";
@@ -31,14 +34,11 @@ export default async function StanjePage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Stanje zaliha</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Pregled svih praćenih stavki — gazda vidi šta treba da naruči.
-          Stavke se ovde pojavljuju kada se na <strong>Karti pića</strong>{" "}
-          uključi opcija "Prati stanje zaliha".
-        </p>
-      </div>
+      <PageHeader
+        title="Stanje zaliha"
+        description="Pregled svih praćenih stavki — šta treba da se naruči. Stavke se pojavljuju kada se na Karti pića uključi praćenje stanja."
+        icon={<Package className="h-5 w-5" />}
+      />
 
       <InventoryFilters counts={counts} />
 

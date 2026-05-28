@@ -1,4 +1,4 @@
-import { Download, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,26 @@ import { cn } from "@/lib/utils";
 import { PersonTypeLabel } from "@/lib/enums";
 
 import type { MonthlyPersonRow } from "../queries";
+import { SendReportEmailButton } from "./send-report-email-button";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("sr-RS").format(n);
 }
+
+const MONTHS_SR = [
+  "Januar",
+  "Februar",
+  "Mart",
+  "April",
+  "Maj",
+  "Jun",
+  "Jul",
+  "Avgust",
+  "Septembar",
+  "Oktobar",
+  "Novembar",
+  "Decembar",
+];
 
 interface MonthlyReportTableProps {
   rows: MonthlyPersonRow[];
@@ -44,7 +60,7 @@ export function MonthlyReportTable({ rows, year, month }: MonthlyReportTableProp
             <TableHead className="text-right">Potrošeno u mesecu</TableHead>
             <TableHead className="text-right">Uplate u mesecu</TableHead>
             <TableHead className="text-right">Porudžbine</TableHead>
-            <TableHead className="w-32"></TableHead>
+            <TableHead className="w-40"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -103,20 +119,30 @@ export function MonthlyReportTable({ rows, year, month }: MonthlyReportTableProp
                     );
                   }
                   return (
-                    <a
-                      href={`/api/reports/person/${r.personId}/pdf?year=${year}&month=${month}`}
-                      target="_blank"
-                      rel="noopener"
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        title="Otvori PDF u novom tabu"
+                    <div className="flex items-center justify-end gap-1.5">
+                      <a
+                        href={`/api/reports/person/${r.personId}/pdf?year=${year}&month=${month}`}
+                        target="_blank"
+                        rel="noopener"
                       >
-                        <FileText className="h-3.5 w-3.5" />
-                        <span className="ml-1">PDF</span>
-                      </Button>
-                    </a>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Otvori PDF u novom tabu"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          <span className="ml-1">PDF</span>
+                        </Button>
+                      </a>
+                      <SendReportEmailButton
+                        personId={r.personId}
+                        fullName={`${r.firstName} ${r.lastName}`}
+                        email={r.email}
+                        periodLabel={`${MONTHS_SR[month - 1]} ${year}`}
+                        year={year}
+                        month={month}
+                      />
+                    </div>
                   );
                 })()}
               </TableCell>

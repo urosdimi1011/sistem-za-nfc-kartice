@@ -1,6 +1,7 @@
-import { Plus } from "lucide-react";
+import { Plus, School } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { auth } from "@/auth";
 import { listGroups } from "@/features/groups/queries";
 import { getTenantSettings } from "@/features/settings/queries";
@@ -25,24 +26,22 @@ export default async function GroupsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{labelPlural}</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Grupe kojima osobe (učenici i zaposleni) mogu pripadati. Povlači za
-            promenu redosleda.
-          </p>
-        </div>
-        <GroupFormDialog
-          groupLabel={label}
-          trigger={
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova {lcSingular}
-            </Button>
-          }
-        />
-      </div>
+      <PageHeader
+        title={labelPlural}
+        description="Grupe kojima osobe (učenici i zaposleni) mogu pripadati. Povlači za promenu redosleda."
+        icon={<School className="h-5 w-5" />}
+        actions={
+          <GroupFormDialog
+            groupLabel={label}
+            trigger={
+              <Button className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova {lcSingular}
+              </Button>
+            }
+          />
+        }
+      />
 
       {groups.length === 0 ? (
         <div className="rounded-md border border-dashed py-20 text-center">
