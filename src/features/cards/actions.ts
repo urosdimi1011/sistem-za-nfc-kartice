@@ -7,6 +7,7 @@ import {
   registerCard,
   blockCard,
   reactivateCard,
+  reassignCard,
   CardServiceError,
 } from "./service";
 
@@ -87,5 +88,30 @@ export async function reactivateCardAction(cardId: string): Promise<ActionResult
     }
     console.error(e);
     return { ok: false, error: "Greška pri aktivaciji" };
+  }
+}
+
+export async function reassignCardAction(
+  cardId: string,
+  newPersonId: string,
+): Promise<ActionResult> {
+  const check = await requireAdmin();
+  if (check.denied) return check.result;
+
+  if (!newPersonId) {
+    return { ok: false, error: "Izaberi osobu" };
+  }
+
+  try {
+    await reassignCard(check.tenantId, cardId, newPersonId);
+    revalidatePath("/kartice");
+    revalidatePath("/osobe");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof CardServiceError) {
+      return { ok: false, error: e.message, code: e.code, extra: e.extra };
+    }
+    console.error(e);
+    return { ok: false, error: "Greška pri prebacivanju kartice" };
   }
 }

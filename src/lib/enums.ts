@@ -51,6 +51,7 @@ export const TransactionTypeLabel: Record<TransactionType, string> = {
   MANUAL_DEDUCT: "Ručno skidanje",
   ORDER: "Porudžbina",
   MONTHLY_RESET: "Mesečno zatvaranje",
+  REVERSAL: "Storno",
 };
 
 export const TRANSACTION_TYPES = [
@@ -58,4 +59,5 @@ export const TRANSACTION_TYPES = [
   "MANUAL_DEDUCT",
   "ORDER",
   "MONTHLY_RESET",
+  "REVERSAL",
 ] as const satisfies readonly TransactionType[];

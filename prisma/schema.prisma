@@ -155,6 +155,7 @@ model SystemAccount {
 
   ordersAsBartender Order[]             @relation("BartenderOrders")
   performedTx       CreditTransaction[] @relation("PerformedTransactions")
+  reversedTx        CreditTransaction[] @relation("ReversedTransactions")
   registeredCards   Card[]              @relation("RegisteredCards")
   monthlyCloses     MonthlyClose[]
   stockMovements    StockMovement[]
@@ -191,8 +192,11 @@ model Card {
 
   orders Order[]
 
-  // UID unique unutar tenanta (različiti tenanti mogu imati istovremeno istu fizičku karticu)
-  @@unique([tenantId, uid])
+  // UID NIJE puni unique — deaktivirana kartica oslobađa svoj UID da bi se ista
+  // fizička kartica mogla ponovo registrovati (zamena izgubljene). Jedinstvenost
+  // se garantuje PARTIAL unique indeksom (samo aktivne kartice) — kreiran raw SQL-om
+  // u prisma/sql/card-active-uid-index.sql, plus app-level provera u registerCard.
+  @@index([tenantId, uid])
   @@index([tenantId])
   @@index([tenantId, personId])
   @@index([tenantId, isActive])
@@ -230,6 +234,18 @@ model CreditTransaction {
   orderId       String?         @unique
   createdAt     DateTime        @default(now())
 
+  // Storno — admin može da poništi pogrešno proknjiženu transakciju.
+  // Originalna transakcija ostaje radi audita (immutable ledger); pravi se
+  // dodatna REVERSAL transakcija sa suprotnim iznosom, a original se markira.
+  reversedAt    DateTime?
+  reversedBy    SystemAccount?     @relation("ReversedTransactions", fields: [reversedById], references: [id])
+  reversedById  String?
+  reversalReason String?
+  // self-relacija: REVERSAL transakcija upućuje na original koji poništava
+  reverses      CreditTransaction? @relation("Reversal", fields: [reversesId], references: [id])
+  reversesId    String?            @unique
+  reversedByTx  CreditTransaction? @relation("Reversal")
+
   @@index([tenantId])
   @@index([tenantId, createdAt])
   @@index([tenantId, type])
@@ -242,6 +258,7 @@ enum TransactionType {
   MANUAL_DEDUCT
   ORDER
   MONTHLY_RESET
+  REVERSAL
 }
 
 // ─── KARTA PIĆA ──────────────────────────────────────────
@@ -348,6 +365,11 @@ model Order {
   bartenderId  String
   totalCredits Int
   createdAt    DateTime      @default(now())
+
+  // Storno — postavlja se kad admin poništi pripadajuću transakciju.
+  // Originalni red Order-a se ne briše (audit), ali UI ga prikazuje kao otkazan
+  // i agregati prometa ga preskaču.
+  cancelledAt DateTime?
 
   items          OrderItem[]
   transaction    CreditTransaction?

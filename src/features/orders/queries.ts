@@ -18,13 +18,18 @@ export async function getBarSessionStats(): Promise<{
 
   const [count, agg] = await Promise.all([
     prisma.order.count({
-      where: { tenantId, createdAt: { gte: startOfDay } },
+      where: {
+        tenantId,
+        createdAt: { gte: startOfDay },
+        cancelledAt: null, // izostavi stornirane porudžbine
+      },
     }),
     prisma.creditTransaction.aggregate({
       where: {
         tenantId,
         type: "ORDER",
         createdAt: { gte: startOfDay },
+        reversedAt: null,
       },
       _sum: { amount: true },
     }),

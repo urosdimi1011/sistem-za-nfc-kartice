@@ -10,7 +10,9 @@ export class CardServiceError extends Error {
       | "PERSON_NOT_FOUND"
       | "CARD_NOT_FOUND"
       | "ALREADY_ACTIVE"
-      | "ALREADY_BLOCKED",
+      | "ALREADY_BLOCKED"
+      | "CARD_HAS_HISTORY"
+      | "SAME_PERSON",
     message: string,
     public extra?: Record<string, unknown>,
   ) {
@@ -32,14 +34,16 @@ export async function registerCard(
       throw new CardServiceError("PERSON_NOT_FOUND", "Osoba ne postoji");
     }
 
-    const existingByUid = await tx.card.findFirst({
-      where: { uid: input.uid, tenantId },
+    // Samo AKTIVNA kartica sa istim UID-om blokira registraciju.
+    // Deaktivirana (blokirana) kartica oslobađa UID za ponovnu upotrebu.
+    const activeByUid = await tx.card.findFirst({
+      where: { uid: input.uid, tenantId, isActive: true },
       include: { person: { select: { firstName: true, lastName: true } } },
     });
-    if (existingByUid) {
+    if (activeByUid) {
       throw new CardServiceError(
         "UID_TAKEN",
-        `Ova kartica je već registrovana na ${existingByUid.person.lastName} ${existingByUid.person.firstName}`,
+        `Ova kartica je već aktivna na ${activeByUid.person.lastName} ${activeByUid.person.firstName}`,
       );
     }
 
@@ -113,8 +117,83 @@ export async function reactivateCard(tenantId: string, cardId: string) {
     );
   }
 
+  // U međuvremenu je možda neko drugi dobio karticu sa istim UID-om — ne dozvoli
+  // dve aktivne sa istim UID-om (partial unique index bi to ionako odbio).
+  const uidActive = await prisma.card.findFirst({
+    where: { tenantId, uid: card.uid, isActive: true, id: { not: cardId } },
+    include: { person: { select: { firstName: true, lastName: true } } },
+  });
+  if (uidActive) {
+    throw new CardServiceError(
+      "UID_TAKEN",
+      `Kartica sa ovim UID-om je sada aktivna na ${uidActive.person.lastName} ${uidActive.person.firstName}. Ne može se reaktivirati.`,
+    );
+  }
+
   return prisma.card.update({
     where: { id: cardId },
     data: { isActive: true, deactivatedAt: null },
+  });
+}
+
+/**
+ * Prebacuje karticu na drugu osobu (ispravka pogrešne dodele).
+ * Bezbedno SAMO ako kartica nema porudžbina — inače bi se mešala istorija
+ * potrošnje. Ako ima istoriju, vrati grešku i uputi na deaktivaciju + novu karticu.
+ */
+export async function reassignCard(
+  tenantId: string,
+  cardId: string,
+  newPersonId: string,
+) {
+  return prisma.$transaction(async (tx) => {
+    const card = await tx.card.findFirst({
+      where: { id: cardId, tenantId },
+    });
+    if (!card)
+      throw new CardServiceError("CARD_NOT_FOUND", "Kartica ne postoji");
+
+    if (card.personId === newPersonId) {
+      throw new CardServiceError(
+        "SAME_PERSON",
+        "Kartica je već dodeljena toj osobi.",
+      );
+    }
+
+    const newPerson = await tx.person.findFirst({
+      where: { id: newPersonId, tenantId },
+      select: { id: true },
+    });
+    if (!newPerson) {
+      throw new CardServiceError("PERSON_NOT_FOUND", "Osoba ne postoji");
+    }
+
+    // Guard: kartica sa istorijom ne sme da se prebaci (mešanje potrošnje)
+    const orderCount = await tx.order.count({ where: { cardId } });
+    if (orderCount > 0) {
+      throw new CardServiceError(
+        "CARD_HAS_HISTORY",
+        `Ova kartica ima ${orderCount} porudžbina. Ne može se prebaciti (pomešala bi se istorija). Blokiraj je i registruj novu karticu pravoj osobi.`,
+        { orderCount },
+      );
+    }
+
+    // Ako nova osoba već ima aktivnu karticu, ne dozvoli (jedna aktivna po osobi)
+    if (card.isActive) {
+      const newPersonActiveCard = await tx.card.findFirst({
+        where: { tenantId, personId: newPersonId, isActive: true },
+      });
+      if (newPersonActiveCard) {
+        throw new CardServiceError(
+          "PERSON_HAS_ACTIVE_CARD",
+          "Nova osoba već ima aktivnu karticu.",
+        );
+      }
+    }
+
+    return tx.card.update({
+      where: { id: cardId },
+      data: { personId: newPersonId },
+    });
   });
 }

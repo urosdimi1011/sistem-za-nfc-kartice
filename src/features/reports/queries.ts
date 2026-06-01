@@ -126,6 +126,10 @@ export async function getMonthlyReport(
       where: {
         tenantId,
         createdAt: { gte: start, lte: end },
+        // Stornirane transakcije i REVERSAL zapisi se izostavljaju iz
+        // izveštaja — ponašanje "kao da se nikad nije ni desilo".
+        reversedAt: null,
+        type: { not: "REVERSAL" },
       },
       _sum: { amount: true },
       _count: { id: true },
@@ -307,6 +311,10 @@ export async function getPersonReport(
         tenantId,
         personId,
         createdAt: { gte: start, lte: end },
+        // PDF izveštaj ne računa stornirane transakcije ni REVERSAL zapise —
+        // tretira ih kao da se nikad nisu desile.
+        reversedAt: null,
+        type: { not: "REVERSAL" },
       },
       orderBy: { createdAt: "asc" },
       select: {

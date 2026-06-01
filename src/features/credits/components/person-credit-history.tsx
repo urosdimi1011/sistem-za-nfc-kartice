@@ -2,7 +2,13 @@
 
 import { format } from "date-fns";
 import { sr } from "date-fns/locale";
-import { ArrowDownRight, ArrowUpRight, RotateCcw, ShoppingCart } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  RotateCcw,
+  ShoppingCart,
+  Undo2,
+} from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -24,6 +30,7 @@ const ICONS = {
   MANUAL_DEDUCT: <ArrowDownRight className="h-3.5 w-3.5 text-red-600" />,
   ORDER: <ShoppingCart className="h-3.5 w-3.5 text-zinc-500" />,
   MONTHLY_RESET: <RotateCcw className="h-3.5 w-3.5 text-amber-600" />,
+  REVERSAL: <Undo2 className="h-3.5 w-3.5 text-amber-600" />,
 } as const;
 
 function HistoryItemSkeleton() {

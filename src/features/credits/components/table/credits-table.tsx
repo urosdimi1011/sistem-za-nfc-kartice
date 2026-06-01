@@ -1,6 +1,12 @@
 import { format } from "date-fns";
 import { sr } from "date-fns/locale";
-import { ArrowDownRight, ArrowUpRight, RotateCcw, ShoppingCart } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  RotateCcw,
+  ShoppingCart,
+  Undo2,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,6 +23,7 @@ import { PersonTypeLabel, TransactionTypeLabel } from "@/lib/enums";
 
 import type { TransactionListItem } from "../../queries";
 import { ExpandableNote } from "../expandable-note";
+import { ReverseTransactionButton } from "../reverse-transaction-button";
 
 function formatAmount(n: number) {
   const abs = new Intl.NumberFormat("sr-RS").format(Math.abs(n));
@@ -39,6 +46,10 @@ function TypeBadge({ type }: { type: TransactionListItem["type"] }) {
     },
     MONTHLY_RESET: {
       icon: <RotateCcw className="h-3 w-3" />,
+      cls: "border-amber-500/40 text-amber-700 dark:text-amber-400",
+    },
+    REVERSAL: {
+      icon: <Undo2 className="h-3 w-3" />,
       cls: "border-amber-500/40 text-amber-700 dark:text-amber-400",
     },
   } as const;
@@ -84,11 +95,20 @@ export function CreditsTable({ items }: CreditsTableProps) {
             <TableHead className="text-right">Stanje posle</TableHead>
             <TableHead>Napomena</TableHead>
             <TableHead>Operater</TableHead>
+            <TableHead className="w-12 text-right"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((t) => (
-            <TableRow key={t.id}>
+          {items.map((t) => {
+            const isReversed = !!t.reversedAt;
+            const isReversal = t.type === "REVERSAL";
+            const canReverse =
+              !isReversed && !isReversal && t.type !== "MONTHLY_RESET";
+            return (
+            <TableRow
+              key={t.id}
+              className={cn(isReversed && "opacity-60")}
+            >
               <TableCell className="whitespace-nowrap text-xs text-zinc-500">
                 {format(t.createdAt, "dd.MM.yyyy. HH:mm", { locale: sr })}
               </TableCell>
@@ -112,6 +132,7 @@ export function CreditsTable({ items }: CreditsTableProps) {
                   t.amount > 0
                     ? "text-green-700 dark:text-green-400"
                     : "text-red-700 dark:text-red-400",
+                  isReversed && "line-through",
                 )}
               >
                 {formatAmount(t.amount)}
@@ -125,13 +146,28 @@ export function CreditsTable({ items }: CreditsTableProps) {
                 {new Intl.NumberFormat("sr-RS").format(t.balanceAfter)}
               </TableCell>
               <TableCell className="text-xs">
-                <ExpandableNote note={t.note} isOrder={t.type === "ORDER"} />
+                <div className="space-y-1">
+                  <ExpandableNote note={t.note} isOrder={t.type === "ORDER"} />
+                  {isReversed && (
+                    <div className="flex items-start gap-1 text-[11px] text-amber-700 dark:text-amber-400">
+                      <Undo2 className="mt-0.5 h-3 w-3 shrink-0" />
+                      <span>
+                        Stornirao {t.reversedBy?.email ?? "—"}:{" "}
+                        <em>{t.reversalReason ?? "—"}</em>
+                      </span>
+                    </div>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="text-xs text-zinc-500">
                 {t.performedBy.email}
               </TableCell>
+              <TableCell className="text-right">
+                {canReverse && <ReverseTransactionButton tx={t} />}
+              </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </div>

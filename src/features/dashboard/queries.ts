@@ -86,11 +86,21 @@ export async function getDashboardData(): Promise<DashboardData> {
   ] = await Promise.all([
     // KPI: današnji prihod (ORDER transakcije, amount je negativan, uzimamo apsolutnu vrednost)
     prisma.creditTransaction.aggregate({
-      where: { tenantId, type: "ORDER", createdAt: { gte: startToday } },
+      where: {
+        tenantId,
+        type: "ORDER",
+        createdAt: { gte: startToday },
+        reversedAt: null, // izostavi stornirane porudžbine iz prometa
+      },
       _sum: { amount: true },
     }),
     prisma.creditTransaction.aggregate({
-      where: { tenantId, type: "ORDER", createdAt: { gte: startMonth } },
+      where: {
+        tenantId,
+        type: "ORDER",
+        createdAt: { gte: startMonth },
+        reversedAt: null,
+      },
       _sum: { amount: true },
     }),
     prisma.person.count({ where: { tenantId, isActive: true } }),
@@ -99,14 +109,14 @@ export async function getDashboardData(): Promise<DashboardData> {
       where: { tenantId, createdAt: { gte: startToday } },
     }),
     prisma.order.count({
-      where: { tenantId, createdAt: { gte: startMonth } },
+      where: { tenantId, createdAt: { gte: startMonth }, cancelledAt: null },
     }),
 
     // Top stavke ovog meseca
     prisma.orderItem.groupBy({
       by: ["menuItemId"],
       where: {
-        order: { tenantId, createdAt: { gte: startMonth } },
+        order: { tenantId, createdAt: { gte: startMonth }, cancelledAt: null },
       },
       _sum: { quantity: true },
       orderBy: { _sum: { quantity: "desc" } },
@@ -151,6 +161,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         tenantId,
         type: "ORDER",
         createdAt: { gte: startSevenDaysAgo },
+        reversedAt: null,
       },
       select: { amount: true, createdAt: true },
     }),

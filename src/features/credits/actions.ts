@@ -6,6 +6,7 @@ import { topUpSchema, deductSchema } from "./schemas";
 import {
   topUpCredits,
   deductCredits,
+  reverseTransaction,
   CreditServiceError,
 } from "./service";
 
@@ -54,6 +55,35 @@ export async function topUpAction(
     }
     console.error(e);
     return { ok: false, error: "Greška pri uplati" };
+  }
+}
+
+export async function reverseTransactionAction(
+  transactionId: string,
+  reason: string,
+  restoreStock: boolean,
+): Promise<ActionResult<{ newBalance: number }>> {
+  const check = await requireAdmin();
+  if (check.denied) return check.result;
+
+  try {
+    const { newBalance } = await reverseTransaction({
+      tenantId: check.tenantId,
+      transactionId,
+      reason,
+      restoreStock,
+      performedByAccountId: check.accountId,
+    });
+    revalidatePath("/transakcije");
+    revalidatePath("/osobe");
+    revalidatePath("/stanje");
+    return { ok: true, data: { newBalance } };
+  } catch (e) {
+    if (e instanceof CreditServiceError) {
+      return { ok: false, error: e.message, code: e.code };
+    }
+    console.error(e);
+    return { ok: false, error: "Greška pri storniranju transakcije" };
   }
 }
 

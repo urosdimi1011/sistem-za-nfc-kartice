@@ -18,6 +18,12 @@ export interface TransactionListItem {
     personType: PersonType;
   };
   performedBy: { email: string };
+  // Storno meta
+  reversedAt: Date | null;
+  reversalReason: string | null;
+  reversedBy: { email: string } | null;
+  reversesId: string | null;
+  orderId: string | null;
 }
 
 export interface TransactionsListResult {
@@ -83,6 +89,11 @@ export async function listTransactions(
           },
         },
         performedBy: { select: { email: true } },
+        reversedAt: true,
+        reversalReason: true,
+        reversedBy: { select: { email: true } },
+        reversesId: true,
+        orderId: true,
       },
     }),
   ]);

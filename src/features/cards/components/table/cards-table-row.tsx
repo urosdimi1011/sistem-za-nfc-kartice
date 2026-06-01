@@ -12,6 +12,7 @@ import type { CardListItem } from "../../queries";
 import {
   BlockCardButton,
   ReactivateCardButton,
+  ReassignCardButton,
 } from "../card-action-buttons";
 
 interface CardsTableRowProps {
@@ -101,11 +102,19 @@ export function CardsTableRow({ card: c }: CardsTableRowProps) {
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           {c.isActive ? (
-            <BlockCardButton
-              cardId={c.id}
-              uid={c.uid}
-              personName={`${c.person.firstName} ${c.person.lastName}`}
-            />
+            <>
+              <ReassignCardButton
+                cardId={c.id}
+                uid={c.uid}
+                personName={`${c.person.firstName} ${c.person.lastName}`}
+                orderCount={c.orderCount}
+              />
+              <BlockCardButton
+                cardId={c.id}
+                uid={c.uid}
+                personName={`${c.person.firstName} ${c.person.lastName}`}
+              />
+            </>
           ) : !c.isReplaced ? (
             <ReactivateCardButton
               cardId={c.id}
