@@ -60,6 +60,12 @@ export const tenantSettingsSchema = z.object({
   groupLabel: z.string().trim().min(1).max(30),
   groupLabelPlural: z.string().trim().min(1).max(30),
   requireGroup: z.boolean(),
+  // ─── Email obaveštenja ───
+  /** Mejl osobi kad stanje padne ispod praga (šalje se samo pri prelasku). */
+  notifyLowBalance: z.boolean(),
+  lowBalanceNotifyThreshold: z.number().int().positive().max(1_000_000),
+  /** Mejl adminima kad zaliha artikla padne ispod lowStockThreshold. */
+  notifyLowStock: z.boolean(),
 });
 
 export type TenantSettings = z.infer<typeof tenantSettingsSchema>;
@@ -78,9 +84,19 @@ export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
   groupLabel: "Grupa",
   groupLabelPlural: "Grupe",
   requireGroup: false,
+  notifyLowBalance: false,
+  lowBalanceNotifyThreshold: 200,
+  notifyLowStock: false,
 };
 
 export function parseTenantSettings(raw: unknown): TenantSettings {
-  const result = tenantSettingsSchema.safeParse(raw);
+  // Merge sa default-ima PRE parsiranja — postojeći tenant JSON snimljen pre
+  // dodavanja novih polja i dalje prolazi (nova polja dobiju default), a da
+  // ne pregazi ceo settings objekat default vrednostima.
+  const candidate =
+    typeof raw === "object" && raw !== null
+      ? { ...DEFAULT_TENANT_SETTINGS, ...raw }
+      : raw;
+  const result = tenantSettingsSchema.safeParse(candidate);
   return result.success ? result.data : DEFAULT_TENANT_SETTINGS;
 }

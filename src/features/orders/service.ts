@@ -75,6 +75,15 @@ interface CreateOrderParams extends CreateOrderInput {
   bartenderAccountId: string;
 }
 
+/** Prelasci pragova detektovani tokom porudžbine — akcija na osnovu ovoga
+ *  šalje email obaveštenja (posle response-a, van transakcije). */
+export interface OrderNotifications {
+  /** Stanje osobe je OVOM porudžbinom palo ispod praga (tenant pravilo). */
+  lowBalance: { personId: string; newBalance: number; threshold: number } | null;
+  /** Artikli koji su OVOM porudžbinom pali ispod svog praga zaliha. */
+  lowStockItems: Array<{ name: string; stock: number; threshold: number }>;
+}
+
 export async function createOrder(params: CreateOrderParams) {
   if (params.items.length === 0) {
     throw new OrderServiceError("EMPTY_CART", "Korpa je prazna");
@@ -221,6 +230,8 @@ export async function createOrder(params: CreateOrderParams) {
       },
     });
 
+    const lowStockItems: OrderNotifications["lowStockItems"] = [];
+
     // Inventar: atomska dekrementacija + StockMovement audit + auto-hide na 0.
     // Koristimo conditional UPDATE (updateMany sa where stock >= qty) — ako vrati
     // count=0, race condition smo izgubili (drugi konobar je već potrošio zalihe).
@@ -253,6 +264,20 @@ export async function createOrder(params: CreateOrderParams) {
         select: { stock: true },
       });
       const newStock = fresh.stock;
+
+      // Prelazak praga zaliha — samo pri prelasku (pre > prag, sada <= prag)
+      // da se admin ne bombarduje mejlom za svaku sledeću prodaju.
+      if (
+        settings.notifyLowStock &&
+        menu.stock > menu.lowStockThreshold &&
+        newStock <= menu.lowStockThreshold
+      ) {
+        lowStockItems.push({
+          name: menu.name,
+          stock: newStock,
+          threshold: menu.lowStockThreshold,
+        });
+      }
 
       // Ne diramo isAvailable — UI (bar terminal + karta pića) izvodi
       // status "Nema na stanju" iz trackStock + stock vrednosti. isAvailable
@@ -298,11 +323,24 @@ export async function createOrder(params: CreateOrderParams) {
       },
     });
 
+    // Prelazak praga stanja — samo pri prelasku, ne na svaku kupovinu ispod praga
+    const lowBalance =
+      settings.notifyLowBalance &&
+      newBalance < settings.lowBalanceNotifyThreshold &&
+      currentBalance >= settings.lowBalanceNotifyThreshold
+        ? {
+            personId: card.person.id,
+            newBalance,
+            threshold: settings.lowBalanceNotifyThreshold,
+          }
+        : null;
+
     return {
       orderId: order.id,
       totalCredits,
       newBalance,
       personName: `${card.person.firstName} ${card.person.lastName}`,
+      notifications: { lowBalance, lowStockItems } satisfies OrderNotifications,
     };
   });
 }

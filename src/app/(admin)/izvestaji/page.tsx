@@ -3,6 +3,8 @@ import { z } from "zod";
 import { FileBarChart } from "lucide-react";
 import { PERSON_TYPES, PersonType } from "@/lib/enums";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportExcelButton } from "@/components/ui/export-excel-button";
+import { BulkSendReportsDialog } from "@/features/reports/components/bulk-send-reports-dialog";
 import { PeriodPicker } from "@/features/reports/components/period-picker";
 import { ReportsFilters } from "@/features/reports/components/reports-filters";
 import { MonthlyReportSection } from "@/features/reports/components/monthly-report-section";
@@ -113,6 +115,28 @@ export default async function IzvestajiPage({ searchParams }: PageProps) {
         title="Izveštaji"
         description="Mesečna potrošnja po osobama, individualni PDF izveštaji i zatvaranje meseca"
         icon={<FileBarChart className="h-5 w-5" />}
+        actions={
+          <>
+            <BulkSendReportsDialog
+              year={year}
+              month={month}
+              monthLabel={monthLabel}
+              personType={personType}
+              groupId={parsed.groupId ?? null}
+            />
+            <ExportExcelButton
+              endpoint="/api/reports/monthly/xlsx"
+              params={{
+                year,
+                month,
+                personType,
+                groupId: parsed.groupId,
+                search: parsed.search,
+                onlyWithActivity: String(onlyWithActivity),
+              }}
+            />
+          </>
+        }
       />
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">

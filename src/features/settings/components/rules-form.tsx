@@ -292,6 +292,69 @@ export function RulesForm({ initial }: RulesFormProps) {
             />
           </section>
 
+          {/* Email obaveštenja */}
+          <section className="space-y-3 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="text-base font-semibold">Email obaveštenja</h2>
+            <p className="text-xs text-zinc-500">
+              Zahteva podešen email nalog (GMAIL_USER / GMAIL_APP_PASSWORD).
+              Ako email nije konfigurisan, obaveštenja se tiho preskaču.
+            </p>
+            <FormField
+              control={form.control}
+              name="notifyLowBalance"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Toggle
+                      label="Obavesti osobu kad joj stanje padne ispod praga"
+                      description="Mejl se šalje osobi (ako ima upisan email) samo u trenutku kad stanje pređe prag — ne na svaku kupovinu."
+                      checked={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            {form.watch("notifyLowBalance") && (
+              <FormField
+                control={form.control}
+                name="lowBalanceNotifyThreshold"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Prag za obaveštenje o niskom stanju</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={field.value}
+                        onChange={(e) =>
+                          field.onChange(Number(e.target.value) || 1)
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            <FormField
+              control={form.control}
+              name="notifyLowStock"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Toggle
+                      label="Obavesti admine kad zalihe padnu ispod praga"
+                      description="Mejl svim aktivnim admin nalozima kad artikal sa praćenjem zaliha padne ispod svog praga (podešava se po artiklu)."
+                      checked={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </section>
+
           {/* Valuta */}
           <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
             <h2 className="text-base font-semibold">Valuta</h2>

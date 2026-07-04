@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { auth } from "@/auth";
+import {
+  notifyLowBalance,
+  notifyLowStock,
+} from "@/features/notifications/service";
 import { createOrderSchema } from "./schemas";
 import {
   createOrder,
@@ -72,7 +77,20 @@ export async function createOrderAction(
     });
     revalidatePath("/transakcije");
     revalidatePath("/osobe");
-    return { ok: true, data: result };
+
+    // Email obaveštenja idu POSLE response-a (after) — konobar ne čeka SMTP.
+    // Servisi unutra sami proveravaju konfiguraciju i gutaju greške.
+    const { notifications, ...data } = result;
+    const tenantId = check.tenantId;
+    if (notifications.lowBalance) {
+      const lb = notifications.lowBalance;
+      after(() => notifyLowBalance({ tenantId, ...lb }));
+    }
+    if (notifications.lowStockItems.length > 0) {
+      after(() => notifyLowStock({ tenantId, items: notifications.lowStockItems }));
+    }
+
+    return { ok: true, data };
   } catch (e) {
     if (e instanceof OrderServiceError) {
       return { ok: false, error: e.message, code: e.code, extra: e.extra };

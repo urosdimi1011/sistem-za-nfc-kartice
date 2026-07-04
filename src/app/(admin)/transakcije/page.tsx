@@ -2,6 +2,7 @@ import { Minus, Plus, Receipt } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportExcelButton } from "@/components/ui/export-excel-button";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { PersonFilterBadge } from "@/components/ui/person-filter-badge";
 import { transactionsQuerySchema } from "@/features/credits/schemas";
@@ -44,6 +45,16 @@ export default async function KreditiPage({ searchParams }: PageProps) {
         icon={<Receipt className="h-5 w-5" />}
         actions={
           <>
+            <ExportExcelButton
+              endpoint="/api/transactions/xlsx"
+              params={{
+                search: query.search,
+                personId: query.personId,
+                type: query.type,
+                dateFrom: query.dateFrom,
+                dateTo: query.dateTo,
+              }}
+            />
             <CreditDialog
               mode="DEDUCT"
               trigger={

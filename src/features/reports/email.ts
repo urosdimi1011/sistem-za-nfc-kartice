@@ -1,7 +1,7 @@
 import "server-only";
 import { renderToBuffer } from "@react-pdf/renderer";
-import nodemailer from "nodemailer";
 
+import { isMailConfigured, sendMail, escapeHtml as esc } from "@/lib/mailer";
 import { getPersonReport } from "./queries";
 import { PersonReportPdf } from "./pdf/person-report-pdf";
 
@@ -34,9 +34,7 @@ export async function sendPersonReportEmail(
   year: number,
   month: number,
 ): Promise<{ sentTo: string }> {
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD;
-  if (!gmailUser || !gmailPass) {
+  if (!isMailConfigured()) {
     throw new ReportEmailError(
       "NO_CONFIG",
       "Email servis nije konfigurisan (nedostaje GMAIL_USER / GMAIL_APP_PASSWORD).",
@@ -57,12 +55,6 @@ export async function sendPersonReportEmail(
   // Generiši PDF buffer (isti generator kao download endpoint)
   const pdfBuffer = await renderToBuffer(PersonReportPdf({ data }));
 
-  // Gmail SMTP preko Nodemailer-a
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: gmailUser, pass: gmailPass },
-  });
-
   // Ime pošiljaoca koje primalac vidi — tenant naziv ili env override
   const fromName =
     process.env.REPORT_EMAIL_FROM_NAME ?? data.tenant.name ?? "Sistem za kartice";
@@ -81,14 +73,12 @@ export async function sendPersonReportEmail(
   };
 
   try {
-    await transporter.sendMail({
-      from: `"${fromName}" <${gmailUser}>`,
+    // Multipart: i plain-text i HTML. Spam filteri jako favorizuju mejlove
+    // koji imaju obe verzije — HTML-only deluje "automatizovano/spam".
+    await sendMail({
       to: data.person.email,
-      // Reply-to na sam nalog — primalac može da odgovori, smanjuje "no-reply" spam signal
-      replyTo: gmailUser,
+      fromName,
       subject: `Mesečni izveštaj o potrošnji — ${periodLabel}`,
-      // Multipart: i plain-text i HTML. Spam filteri jako favorizuju mejlove
-      // koji imaju obe verzije — HTML-only deluje "automatizovano/spam".
       text: emailText(emailParams),
       html: emailHtml(emailParams),
       attachments: [
@@ -113,14 +103,6 @@ function fmt(n: number) {
   return new Intl.NumberFormat("sr-RS").format(n);
 }
 
-/** Minimalni HTML escape — imena osoba/organizacija idu u HTML telo mejla. */
-function esc(s: string) {
-  return s
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
 
 function emailHtml(p: {
   fullName: string;
