@@ -12,6 +12,10 @@ const credentialsSchema = z.object({
 
 const ADMIN_IDLE_SECONDS = 10 * 60;
 const DEFAULT_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+// Na koliko se sekundi token revalidira protiv baze (deaktivacija naloga,
+// promena lozinke/uloge, deaktivacija tenanta). JWT bez ovoga važi do isteka
+// (30 dana za konobare) čak i kad admin ugasi nalog.
+const REVALIDATE_SECONDS = 60;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
@@ -60,6 +64,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           personId: account.personId,
           tenantId: account.tenantId,
           tenantSlug: account.tenant.slug,
+          passwordChangedAt: account.passwordChangedAt.getTime(),
         };
       },
     }),
@@ -72,7 +77,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.personId = user.personId;
         token.tenantId = user.tenantId;
         token.tenantSlug = user.tenantSlug;
+        token.pwdAt = user.passwordChangedAt;
+        token.checkedAt = Date.now();
       }
+
+      // Periodična revalidacija protiv baze — bez ovoga izdati JWT važi do
+      // isteka i posle deaktivacije naloga / promene lozinke / gašenja tenanta.
+      const lastChecked = (token.checkedAt as number | undefined) ?? 0;
+      if (Date.now() - lastChecked > REVALIDATE_SECONDS * 1000) {
+        const account = await prisma.systemAccount.findUnique({
+          where: { id: token.id as string },
+          select: {
+            isActive: true,
+            role: true,
+            passwordChangedAt: true,
+            tenant: { select: { isActive: true } },
+          },
+        });
+        if (!account || !account.isActive || !account.tenant.isActive) {
+          return null; // sesija se poništava — korisnik ide na login
+        }
+        if (
+          typeof token.pwdAt === "number" &&
+          account.passwordChangedAt.getTime() > token.pwdAt
+        ) {
+          return null; // lozinka resetovana posle izdavanja tokena
+        }
+        token.role = account.role; // promena uloge važi odmah, ne tek na re-login
+        token.checkedAt = Date.now();
+      }
+
       if (token.role === "ADMIN" || token.role === "MANAGER") {
         token.exp = Math.floor(Date.now() / 1000) + ADMIN_IDLE_SECONDS;
       }

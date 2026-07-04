@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getTenantSettings } from "@/features/settings/queries";
+import { lockPersonRow } from "@/lib/person-lock";
 
 export class CreditServiceError extends Error {
   constructor(
@@ -48,6 +49,9 @@ async function applyDelta(params: {
   const settings = await getTenantSettings(params.tenantId);
 
   return prisma.$transaction(async (tx) => {
+    // Serijalizuje balance operacije po osobi — vidi lib/person-lock.ts
+    await lockPersonRow(tx, params.personId);
+
     const person = await tx.person.findFirst({
       where: { id: params.personId, tenantId: params.tenantId },
       include: { creditBalance: true },
@@ -160,13 +164,19 @@ export async function reverseTransaction(params: ReverseParams) {
     const original = await tx.creditTransaction.findFirst({
       where: { id: params.transactionId, tenantId: params.tenantId },
       include: {
-        person: { include: { creditBalance: true } },
         order: { include: { items: true } },
       },
     });
     if (!original) {
       throw new CreditServiceError("TX_NOT_FOUND", "Transakcija ne postoji.");
     }
+
+    // Lock pre čitanja stanja — vidi lib/person-lock.ts
+    await lockPersonRow(tx, original.personId);
+    const balanceRow = await tx.creditBalance.findUnique({
+      where: { personId: original.personId },
+      select: { balance: true },
+    });
     if (original.reversedAt) {
       throw new CreditServiceError(
         "TX_ALREADY_REVERSED",
@@ -182,7 +192,7 @@ export async function reverseTransaction(params: ReverseParams) {
       );
     }
 
-    const currentBalance = original.person.creditBalance?.balance ?? 0;
+    const currentBalance = balanceRow?.balance ?? 0;
     // Suprotan iznos — vraća stanje na ono pre originala (logički).
     const reversalDelta = -original.amount;
     const newBalance = currentBalance + reversalDelta;

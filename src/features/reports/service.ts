@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { lockPersonRow } from "@/lib/person-lock";
 
 export class ReportsServiceError extends Error {
   constructor(
@@ -68,11 +69,33 @@ export async function closeMonthForTenant(
 
     let totalAmount = 0;
     const note = `Mesečno zatvaranje ${month}/${year}`;
+    const closedEmployees: Array<{
+      personId: string;
+      firstName: string;
+      lastName: string;
+      amount: number;
+    }> = [];
 
-    // Za svakog zaposlenog kreiraj MONTHLY_RESET transakciju + reset balance
+    // Za svakog zaposlenog kreiraj MONTHLY_RESET transakciju + reset balance.
+    // Lock + re-read po osobi: bez toga bi istovremena porudžbina/uplata
+    // mogla da bude pregažena resetom na 0 (lost update).
     for (const cb of negativeEmployees) {
-      const absAmount = Math.abs(cb.balance);
+      await lockPersonRow(tx, cb.personId);
+      const fresh = await tx.creditBalance.findUnique({
+        where: { personId: cb.personId },
+        select: { balance: true },
+      });
+      const balance = fresh?.balance ?? 0;
+      if (balance >= 0) continue; // u međuvremenu izašao iz minusa
+
+      const absAmount = Math.abs(balance);
       totalAmount += absAmount;
+      closedEmployees.push({
+        personId: cb.person.id,
+        firstName: cb.person.firstName,
+        lastName: cb.person.lastName,
+        amount: absAmount,
+      });
 
       // Transakcija koja "anulira" minus — amount je pozitivan jednak |balance|, novi balance je 0
       await tx.creditTransaction.create({
@@ -93,6 +116,13 @@ export async function closeMonthForTenant(
       });
     }
 
+    if (closedEmployees.length === 0) {
+      throw new ReportsServiceError(
+        "NO_EMPLOYEES_IN_NEGATIVE",
+        "Nema zaposlenih sa negativnim stanjem — nema šta da se zatvori",
+      );
+    }
+
     // Audit zapis
     const close = await tx.monthlyClose.create({
       data: {
@@ -100,7 +130,7 @@ export async function closeMonthForTenant(
         year,
         month,
         totalAmount,
-        employeeCount: negativeEmployees.length,
+        employeeCount: closedEmployees.length,
         closedById: performedByAccountId,
       },
     });
@@ -108,14 +138,14 @@ export async function closeMonthForTenant(
     return {
       closeId: close.id,
       totalAmount,
-      employeeCount: negativeEmployees.length,
-      employees: negativeEmployees.map((e) => ({
-        personId: e.person.id,
-        name: `${e.person.lastName} ${e.person.firstName}`,
-        amount: Math.abs(e.balance),
+      employeeCount: closedEmployees.length,
+      employees: closedEmployees.map((e) => ({
+        personId: e.personId,
+        name: `${e.lastName} ${e.firstName}`,
+        amount: e.amount,
       })),
     };
-  });
+  }, { timeout: 30_000 });
 }
 
 /**

@@ -113,6 +113,15 @@ function fmt(n: number) {
   return new Intl.NumberFormat("sr-RS").format(n);
 }
 
+/** Minimalni HTML escape — imena osoba/organizacija idu u HTML telo mejla. */
+function esc(s: string) {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 function emailHtml(p: {
   fullName: string;
   tenantName: string;
@@ -123,10 +132,10 @@ function emailHtml(p: {
 }) {
   return `
   <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #18181b;">
-    <h2 style="margin: 0 0 4px;">${p.tenantName}</h2>
+    <h2 style="margin: 0 0 4px;">${esc(p.tenantName)}</h2>
     <p style="margin: 0 0 16px; color: #71717a;">Mesečni izveštaj o potrošnji</p>
-    <p>Poštovani/a <strong>${p.fullName}</strong>,</p>
-    <p>U prilogu se nalazi vaš detaljan izveštaj za period <strong>${p.periodLabel}</strong>.</p>
+    <p>Poštovani/a <strong>${esc(p.fullName)}</strong>,</p>
+    <p>U prilogu se nalazi vaš detaljan izveštaj za period <strong>${esc(p.periodLabel)}</strong>.</p>
     <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
       <tr>
         <td style="padding: 8px 0; color: #71717a;">Trenutno stanje</td>
@@ -147,7 +156,7 @@ function emailHtml(p: {
     </p>
     <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 16px 0;" />
     <p style="color: #a1a1aa; font-size: 12px;">
-      S poštovanjem,<br />${p.tenantName}
+      S poštovanjem,<br />${esc(p.tenantName)}
     </p>
   </div>`;
 }

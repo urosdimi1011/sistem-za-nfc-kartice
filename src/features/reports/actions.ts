@@ -24,6 +24,16 @@ export async function sendReportEmailAction(
   if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") {
     return { ok: false, error: "Nemate pristup" };
   }
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    year < 2000 ||
+    year > 2100 ||
+    month < 1 ||
+    month > 12
+  ) {
+    return { ok: false, error: "Neispravan period" };
+  }
   try {
     const { sentTo } = await sendPersonReportEmail(personId, year, month);
     return { ok: true, data: { sentTo } };

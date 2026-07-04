@@ -26,6 +26,19 @@ export async function GET(
     const now = new Date();
     const year = Number(searchParams.get("year") ?? now.getFullYear());
     const month = Number(searchParams.get("month") ?? now.getMonth() + 1);
+    if (
+      !Number.isInteger(year) ||
+      !Number.isInteger(month) ||
+      year < 2000 ||
+      year > 2100 ||
+      month < 1 ||
+      month > 12
+    ) {
+      return NextResponse.json(
+        { error: "Neispravan period (year/month)" },
+        { status: 400 },
+      );
+    }
 
     const data = await getPersonReport(id, year, month);
     if (!data) {

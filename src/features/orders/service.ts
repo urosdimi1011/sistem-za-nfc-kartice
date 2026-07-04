@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getTenantSettings } from "@/features/settings/queries";
+import { lockPersonRow } from "@/lib/person-lock";
 import type { CreateOrderInput } from "./schemas";
 import { PersonType, TransactionType } from "@/lib/enums";
 
@@ -84,9 +85,7 @@ export async function createOrder(params: CreateOrderParams) {
   return prisma.$transaction(async (tx) => {
     const card = await tx.card.findFirst({
       where: { id: params.cardId, tenantId: params.tenantId },
-      include: {
-        person: { include: { creditBalance: true } },
-      },
+      include: { person: true },
     });
     if (!card) {
       throw new OrderServiceError("CARD_NOT_FOUND", "Kartica ne postoji");
@@ -97,6 +96,14 @@ export async function createOrder(params: CreateOrderParams) {
     if (!card.person.isActive) {
       throw new OrderServiceError("PERSON_INACTIVE", "Osoba je neaktivna");
     }
+
+    // Serijalizuje balance operacije po osobi (dupli klik, dva terminala) —
+    // stanje se čita tek POSLE lock-a. Vidi lib/person-lock.ts.
+    await lockPersonRow(tx, card.person.id);
+    const balanceRow = await tx.creditBalance.findUnique({
+      where: { personId: card.person.id },
+      select: { balance: true },
+    });
 
     const itemIds = params.items.map((i) => i.menuItemId);
     const menuItems = await tx.menuItem.findMany({
@@ -132,7 +139,7 @@ export async function createOrder(params: CreateOrderParams) {
       };
     });
 
-    const currentBalance = card.person.creditBalance?.balance ?? 0;
+    const currentBalance = balanceRow?.balance ?? 0;
     const newBalance = currentBalance - totalCredits;
 
     // STUDENT: blok u minus osim ako tenant settings dozvoljava
@@ -175,6 +182,9 @@ export async function createOrder(params: CreateOrderParams) {
           personId: card.person.id,
           type: { in: ["ORDER", "MANUAL_DEDUCT"] },
           createdAt: { gte: startOfDay },
+          // Stornirane transakcije ne troše dnevni limit — izveštaji ih
+          // takođe tretiraju kao da se nisu desile.
+          reversedAt: null,
         },
         _sum: { amount: true },
       });
@@ -236,7 +246,13 @@ export async function createOrder(params: CreateOrderParams) {
         );
       }
 
-      const newStock = menu.stock - cartItem.quantity;
+      // Sveže stanje posle dekrementa — `menu.stock` je snapshot od pre
+      // updateMany i pod konkurentnim prodajama daje pogrešan stockAfter.
+      const fresh = await tx.menuItem.findUniqueOrThrow({
+        where: { id: menu.id },
+        select: { stock: true },
+      });
+      const newStock = fresh.stock;
 
       // Ne diramo isAvailable — UI (bar terminal + karta pića) izvodi
       // status "Nema na stanju" iz trackStock + stock vrednosti. isAvailable

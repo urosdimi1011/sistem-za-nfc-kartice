@@ -8,6 +8,8 @@ declare module "next-auth" {
     personId: string | null;
     tenantId: string;
     tenantSlug: string;
+    /** epoch ms — koristi se za poništavanje sesije posle reset-a lozinke */
+    passwordChangedAt: number;
   }
 
   interface Session {
@@ -29,5 +31,9 @@ declare module "next-auth/jwt" {
     personId: string | null;
     tenantId: string;
     tenantSlug: string;
+    /** passwordChangedAt naloga u trenutku izdavanja tokena (epoch ms) */
+    pwdAt?: number;
+    /** poslednja revalidacija tokena protiv baze (epoch ms) */
+    checkedAt?: number;
   }
 }

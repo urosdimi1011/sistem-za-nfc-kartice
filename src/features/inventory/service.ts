@@ -33,16 +33,17 @@ export async function restockItem(ctx: Ctx, input: RestockInput) {
         `"${item.name}" nije konfigurisana za praćenje stanja`,
       );
 
-    const newStock = item.stock + input.quantity;
-
-    await tx.menuItem.update({
+    // Atomski increment — konkurentna prodaja (decrement) se ne gubi.
+    const updated = await tx.menuItem.update({
       where: { id: item.id },
       data: {
-        stock: newStock,
+        stock: { increment: input.quantity },
         // Vraćamo na meni ako je bio sakriven zbog 0
         isAvailable: true,
       },
+      select: { stock: true },
     });
+    const newStock = updated.stock;
 
     await tx.stockMovement.create({
       data: {
@@ -119,21 +120,32 @@ export async function recordWaste(ctx: Ctx, input: WasteInput) {
         "NOT_TRACKED",
         `"${item.name}" nije konfigurisana za praćenje stanja`,
       );
-    if (item.stock < input.quantity) {
+    // Uslovni decrement (stock >= qty) — isti šablon kao prodaja u orders
+    // servisu. Sprečava minus pri konkurentnoj prodaji/otpisu.
+    const dec = await tx.menuItem.updateMany({
+      where: {
+        id: item.id,
+        tenantId: ctx.tenantId,
+        stock: { gte: input.quantity },
+      },
+      data: { stock: { decrement: input.quantity } },
+    });
+    if (dec.count === 0) {
       throw new InventoryServiceError(
         "INSUFFICIENT_STOCK",
         `Pokušaj otpisa ${input.quantity}, ali na stanju ima samo ${item.stock}`,
       );
     }
 
-    const newStock = item.stock - input.quantity;
+    const fresh = await tx.menuItem.findUniqueOrThrow({
+      where: { id: item.id },
+      select: { stock: true },
+    });
+    const newStock = fresh.stock;
 
     await tx.menuItem.update({
       where: { id: item.id },
-      data: {
-        stock: newStock,
-        isAvailable: newStock > 0,
-      },
+      data: { isAvailable: newStock > 0 },
     });
 
     await tx.stockMovement.create({

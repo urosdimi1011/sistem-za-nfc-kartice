@@ -8,11 +8,19 @@ import { runMonthlyCloseCron } from "@/features/reports/service";
  * (postavlja se kao env var i automatski u Vercel cron requests-ima).
  */
 export async function GET(req: NextRequest) {
-  // U produkciji: provera bearer tokena.
-  // U dev-u: ovaj endpoint se i ne poziva automatski, samo ručno za test.
-  const authHeader = req.headers.get("authorization");
+  // Fail-closed: bez postavljenog CRON_SECRET endpoint je zaključan.
+  // (Ranije je bio otvoren kad secret nije podešen — svako je mogao da
+  // okine zatvaranje meseca za sve tenante.)
   const expected = process.env.CRON_SECRET;
-  if (expected && authHeader !== `Bearer ${expected}`) {
+  if (!expected) {
+    console.error("[cron/monthly-close] CRON_SECRET nije postavljen — endpoint odbijen");
+    return NextResponse.json(
+      { error: "Cron nije konfigurisan (CRON_SECRET)" },
+      { status: 503 },
+    );
+  }
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
