@@ -9,6 +9,7 @@ import {
   UserCog,
   School,
   Package,
+  Clock,
 } from "lucide-react";
 import { auth } from "@/auth";
 import { IdleLogoutWatcher } from "@/features/auth/components/idle-logout-watcher";
@@ -55,6 +56,11 @@ function buildNavItems(groupLabelPlural: string): NavItem[] {
       href: "/stanje",
       label: "Stanje",
       icon: <Package className={iconCls} />,
+    },
+    {
+      href: "/smene",
+      label: "Smene",
+      icon: <Clock className={iconCls} />,
     },
     {
       href: "/izvestaji",

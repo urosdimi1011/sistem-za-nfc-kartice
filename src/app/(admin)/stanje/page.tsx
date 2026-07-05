@@ -2,9 +2,11 @@ import { Package } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { inventoryQuerySchema } from "@/features/inventory/schemas";
-import { listInventory } from "@/features/inventory/queries";
+import { listInventory, listStockCounts } from "@/features/inventory/queries";
 import { InventoryTable } from "@/features/inventory/components/inventory-table";
 import { InventoryFilters } from "@/features/inventory/components/inventory-filters";
+import { StockCountDialog } from "@/features/inventory/components/stock-count-dialog";
+import { StockCountHistoryDialog } from "@/features/inventory/components/stock-count-history-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,10 @@ export default async function StanjePage({ searchParams }: PageProps) {
   });
 
   // Učitaj sve da imamo tačne brojače za tabove, pa filtriraj per-status
-  const all = await listInventory({ status: "ALL", search: query.search });
+  const [all, stockCounts] = await Promise.all([
+    listInventory({ status: "ALL", search: query.search }),
+    listStockCounts(),
+  ]);
   const counts = {
     ALL: all.length,
     OUT: all.filter((r) => r.status === "OUT").length,
@@ -38,6 +43,18 @@ export default async function StanjePage({ searchParams }: PageProps) {
         title="Stanje zaliha"
         description="Pregled svih praćenih stavki — šta treba da se naruči. Stavke se pojavljuju kada se na Karti pića uključi praćenje stanja."
         icon={<Package className="h-5 w-5" />}
+        actions={
+          <>
+            <StockCountHistoryDialog counts={stockCounts} />
+            <StockCountDialog
+              items={all.map((r) => ({
+                id: r.id,
+                name: r.name,
+                categoryName: r.categoryName,
+              }))}
+            />
+          </>
+        }
       />
 
       <InventoryFilters counts={counts} />

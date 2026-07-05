@@ -1,10 +1,15 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import type { RestockInput, AdjustStockInput, WasteInput } from "./schemas";
+import type {
+  RestockInput,
+  AdjustStockInput,
+  WasteInput,
+  StockCountInput,
+} from "./schemas";
 
 export class InventoryServiceError extends Error {
   constructor(
-    public code: "NOT_FOUND" | "NOT_TRACKED" | "INSUFFICIENT_STOCK",
+    public code: "NOT_FOUND" | "NOT_TRACKED" | "INSUFFICIENT_STOCK" | "EMPTY_COUNT",
     message: string,
   ) {
     super(message);
@@ -162,4 +167,128 @@ export async function recordWaste(ctx: Ctx, input: WasteInput) {
 
     return { newStock };
   });
+}
+
+export interface StockCountResultItem {
+  menuItemId: string;
+  name: string;
+  expected: number;
+  counted: number;
+  variance: number; // negativno = manjak
+  varianceValue: number; // variance × cena
+}
+
+export interface StockCountResult {
+  stockCountId: string;
+  items: StockCountResultItem[];
+  totalVarianceValue: number; // negativno = ukupan manjak u kreditima
+  shortageCount: number; // broj stavki u manjku
+}
+
+/**
+ * Popis zaliha. Izbrojano stanje je autoritativno:
+ *  • za svaku stavku snima expected/counted/variance + cenu (snapshot),
+ *  • postavlja stock na izbrojano i knjiži razliku kao ADJUSTMENT
+ *    StockMovement (audit trag ostaje u postojećoj istoriji),
+ *  • ceo popis se čuva kao StockCount zapis — izveštaj manjka kroz vreme.
+ *
+ * Radi se kad bar ne radi — prodaja u toku brojanja bi pomerala brojke.
+ */
+export async function createStockCount(ctx: Ctx, input: StockCountInput) {
+  return prisma.$transaction(
+    async (tx): Promise<StockCountResult> => {
+      const ids = input.items.map((i) => i.menuItemId);
+      const dbItems = await tx.menuItem.findMany({
+        where: {
+          id: { in: ids },
+          tenantId: ctx.tenantId,
+          trackStock: true,
+          archivedAt: null,
+        },
+        select: { id: true, name: true, stock: true, creditPrice: true },
+      });
+      const byId = new Map(dbItems.map((m) => [m.id, m]));
+
+      const resultItems: StockCountResultItem[] = [];
+      let totalVarianceValue = 0;
+
+      for (const entry of input.items) {
+        const item = byId.get(entry.menuItemId);
+        if (!item) {
+          throw new InventoryServiceError(
+            "NOT_FOUND",
+            "Stavka ne postoji ili se ne prati",
+          );
+        }
+
+        const variance = entry.counted - item.stock;
+        const varianceValue = variance * item.creditPrice;
+        totalVarianceValue += varianceValue;
+
+        if (variance !== 0) {
+          await tx.menuItem.update({
+            where: { id: item.id },
+            data: {
+              stock: entry.counted,
+              isAvailable: entry.counted > 0,
+            },
+          });
+          await tx.stockMovement.create({
+            data: {
+              tenantId: ctx.tenantId,
+              menuItemId: item.id,
+              type: "ADJUSTMENT",
+              quantity: variance,
+              stockAfter: entry.counted,
+              note: `Popis: sistem ${item.stock}, izbrojano ${entry.counted}`,
+              performedById: ctx.performedById,
+            },
+          });
+        }
+
+        resultItems.push({
+          menuItemId: item.id,
+          name: item.name,
+          expected: item.stock,
+          counted: entry.counted,
+          variance,
+          varianceValue,
+        });
+      }
+
+      if (resultItems.length === 0) {
+        throw new InventoryServiceError("EMPTY_COUNT", "Nema izbrojanih stavki");
+      }
+
+      const stockCount = await tx.stockCount.create({
+        data: {
+          tenantId: ctx.tenantId,
+          performedById: ctx.performedById,
+          note: input.note ?? null,
+          totalVarianceValue,
+          itemCount: resultItems.length,
+          items: {
+            create: resultItems.map((r) => ({
+              menuItemId: r.menuItemId,
+              expected: r.expected,
+              counted: r.counted,
+              variance: r.variance,
+              creditPriceAtTime: byId.get(r.menuItemId)!.creditPrice,
+            })),
+          },
+        },
+      });
+
+      // Manjak najveći prvi — to admin prvo gleda
+      resultItems.sort((a, b) => a.varianceValue - b.varianceValue);
+
+      return {
+        stockCountId: stockCount.id,
+        items: resultItems,
+        totalVarianceValue,
+        shortageCount: resultItems.filter((r) => r.variance < 0).length,
+      };
+    },
+    { timeout: 30_000 },
+  );
 }

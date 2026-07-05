@@ -6,13 +6,17 @@ import {
   restockSchema,
   adjustStockSchema,
   wasteSchema,
+  stockCountSchema,
 } from "./schemas";
 import {
   restockItem,
   adjustStock,
   recordWaste,
+  createStockCount,
   InventoryServiceError,
+  type StockCountResult,
 } from "./service";
+import { getStockCountDetail, type StockCountDetailItem } from "./queries";
 
 export type ActionResult<T = void> =
   | { ok: true; data?: T }
@@ -82,6 +86,42 @@ export async function adjustStockAction(
     return { ok: true, data: r };
   } catch (e) {
     return fail(e, "Greška pri korekciji stanja");
+  }
+}
+
+export async function createStockCountAction(
+  raw: unknown,
+): Promise<ActionResult<StockCountResult>> {
+  const check = await requireAdminOrManager();
+  if (check.denied) return check.result;
+  const parsed = stockCountSchema.safeParse(raw);
+  if (!parsed.success)
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Neispravno" };
+  try {
+    const r = await createStockCount(
+      { tenantId: check.tenantId, performedById: check.accountId },
+      parsed.data,
+    );
+    revalidate();
+    return { ok: true, data: r };
+  } catch (e) {
+    return fail(e, "Greška pri popisu");
+  }
+}
+
+export async function getStockCountDetailAction(
+  stockCountId: string,
+): Promise<ActionResult<{ items: StockCountDetailItem[] }>> {
+  const check = await requireAdminOrManager();
+  if (check.denied) return check.result;
+  if (typeof stockCountId !== "string" || !stockCountId) {
+    return { ok: false, error: "Neispravan popis" };
+  }
+  try {
+    const items = await getStockCountDetail(stockCountId);
+    return { ok: true, data: { items } };
+  } catch (e) {
+    return fail(e, "Greška pri učitavanju popisa");
   }
 }
 

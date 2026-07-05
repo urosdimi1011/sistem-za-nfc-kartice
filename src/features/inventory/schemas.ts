@@ -51,6 +51,30 @@ export const wasteSchema = z.object({
 
 export type WasteInput = z.infer<typeof wasteSchema>;
 
+/** Popis — fizičko brojanje. Šalju se samo stavke koje su stvarno izbrojane. */
+export const stockCountSchema = z.object({
+  note: z
+    .string()
+    .trim()
+    .max(300)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  items: z
+    .array(
+      z.object({
+        menuItemId: z.string().min(1),
+        counted: z
+          .number()
+          .int("Izbrojano mora biti ceo broj")
+          .nonnegative("Izbrojano ne sme biti negativno")
+          .max(1_000_000),
+      }),
+    )
+    .min(1, "Unesi bar jednu izbrojanu stavku"),
+});
+
+export type StockCountInput = z.infer<typeof stockCountSchema>;
+
 export const inventoryQuerySchema = z.object({
   status: z.enum(["ALL", "OK", "LOW", "OUT"]).default("ALL"),
   search: z.string().trim().optional(),

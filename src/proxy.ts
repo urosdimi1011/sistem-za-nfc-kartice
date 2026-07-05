@@ -8,6 +8,9 @@ const ADMIN_PREFIXES = [
   "/transakcije",
   "/karta-pica",
   "/izvestaji",
+  "/smene",
+  "/stanje",
+  "/grupe",
   "/nalozi",
   "/podesavanja",
 ];

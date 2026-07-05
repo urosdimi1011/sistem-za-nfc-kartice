@@ -111,6 +111,78 @@ export async function getLowStockSummary(): Promise<{
   return { outOfStock, lowStock, items: rows.slice(0, 5) };
 }
 
+export interface StockCountListRow {
+  id: string;
+  createdAt: Date;
+  performedByEmail: string;
+  note: string | null;
+  itemCount: number;
+  totalVarianceValue: number;
+}
+
+export async function listStockCounts(limit = 50): Promise<StockCountListRow[]> {
+  const tenantId = await requireTenantId();
+  const rows = await prisma.stockCount.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      createdAt: true,
+      note: true,
+      itemCount: true,
+      totalVarianceValue: true,
+      performedBy: { select: { email: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt,
+    performedByEmail: r.performedBy.email,
+    note: r.note,
+    itemCount: r.itemCount,
+    totalVarianceValue: r.totalVarianceValue,
+  }));
+}
+
+export interface StockCountDetailItem {
+  name: string;
+  expected: number;
+  counted: number;
+  variance: number;
+  varianceValue: number;
+}
+
+export async function getStockCountDetail(
+  stockCountId: string,
+): Promise<StockCountDetailItem[]> {
+  const tenantId = await requireTenantId();
+  const count = await prisma.stockCount.findFirst({
+    where: { id: stockCountId, tenantId },
+    select: {
+      items: {
+        select: {
+          expected: true,
+          counted: true,
+          variance: true,
+          creditPriceAtTime: true,
+          menuItem: { select: { name: true } },
+        },
+      },
+    },
+  });
+  if (!count) return [];
+  return count.items
+    .map((i) => ({
+      name: i.menuItem.name,
+      expected: i.expected,
+      counted: i.counted,
+      variance: i.variance,
+      varianceValue: i.variance * i.creditPriceAtTime,
+    }))
+    .sort((a, b) => a.varianceValue - b.varianceValue);
+}
+
 export interface StockMovementRow {
   id: string;
   type: StockMovementType;

@@ -42,6 +42,7 @@ model Tenant {
   monthlyCloses      MonthlyClose[]
   groups             Group[]
   stockMovements     StockMovement[]
+  stockCounts        StockCount[]
 }
 
 // Generička grupa kojoj osoba (učenik ili zaposleni) može da pripada.
@@ -159,6 +160,7 @@ model SystemAccount {
   registeredCards   Card[]              @relation("RegisteredCards")
   monthlyCloses     MonthlyClose[]
   stockMovements    StockMovement[]
+  stockCounts       StockCount[]
 
   @@index([tenantId])
   @@index([tenantId, role])
@@ -307,8 +309,9 @@ model MenuItem {
   //                        za istoriju porudžbina i mesečne izveštaje)
   archivedAt DateTime?
 
-  orderItems     OrderItem[]
-  stockMovements StockMovement[]
+  orderItems      OrderItem[]
+  stockMovements  StockMovement[]
+  stockCountItems StockCountItem[]
 
   @@index([tenantId])
   @@index([categoryId, displayOrder])
@@ -342,6 +345,46 @@ model StockMovement {
   @@index([tenantId, createdAt])
   @@index([menuItemId, createdAt])
   @@index([tenantId, type])
+}
+
+// Popis zaliha — fizičko brojanje robe i poređenje sa sistemskim stanjem.
+// Razlika (variance) je manjak/višak; korekcije se knjiže kao ADJUSTMENT
+// StockMovement u istoj transakciji, a popis ostaje kao trajan zapis.
+// Manjak između dva popisa = roba koja je nestala bez evidencije (krađa,
+// neevidentirani lom...) — glavni anti-theft alat sistema.
+model StockCount {
+  id            String           @id @default(cuid())
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  performedBy   SystemAccount    @relation(fields: [performedById], references: [id])
+  performedById String
+  note          String?
+  // Denormalizovani zbirovi za listu popisa (bez učitavanja stavki):
+  // negativan zbir = ukupan manjak u kreditima (po prodajnoj ceni).
+  totalVarianceValue Int
+  itemCount     Int
+  createdAt     DateTime         @default(now())
+
+  items StockCountItem[]
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId])
+}
+
+model StockCountItem {
+  id           String     @id @default(cuid())
+  stockCount   StockCount @relation(fields: [stockCountId], references: [id])
+  stockCountId String
+  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id])
+  menuItemId   String
+  // Snapshot u trenutku popisa — istorija ostaje tačna i posle promene cene.
+  expected          Int // sistemsko stanje pre popisa
+  counted           Int // fizički izbrojano
+  variance          Int // counted - expected (negativno = manjak)
+  creditPriceAtTime Int
+
+  @@index([stockCountId])
+  @@index([menuItemId])
 }
 
 enum StockMovementType {
